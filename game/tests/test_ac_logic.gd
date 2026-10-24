@@ -26,6 +26,15 @@ func flat() -> GameLogic:
 	return g
 
 
+## Like flat(), with a far Sentinel facing away so the level cannot be won by
+## accident (a level with no Sentinels is won by its first action).
+func guarded() -> GameLogic:
+	var g := flat()
+	sentinel(g, Vector2i(11, 11), 0.0)
+	g.awake = false
+	return g
+
+
 ## A Sentinel at `tile` facing `facing` degrees.
 func sentinel(g: GameLogic, tile: Vector2i, facing: float, dir := 1) -> Dictionary:
 	var s := {"tile": tile, "facing": facing, "dir": dir, "turned": 0.0, "clock": 0, "sees": false}
@@ -80,6 +89,23 @@ func ac_3_create_fails() -> void:
 	before = snapshot(g)
 	check("ac_3_create_fails own tile", g.create(g.player_tile) != "" and snapshot(g) == before)
 	g = flat()
+	g.energy = 1
+	before = snapshot(g)
+	check("ac_3_create_fails boulder low energy", g.create(Vector2i(6, 1), "boulder") != "" and snapshot(g) == before)
+	g = flat()
+	g.flat[1][6] = false
+	before = snapshot(g)
+	check("ac_3_create_fails not flat", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
+	g = flat()
+	g.trees[Vector2i(6, 1)] = true
+	g.synthoids[Vector2i(6, 2)] = true
+	sentinel(g, Vector2i(6, 3), 0.0)
+	before = snapshot(g)
+	var tops_refused := true
+	for row in [1, 2, 3]:
+		tops_refused = tops_refused and g.create(Vector2i(6, row), "boulder") != "" and g.create(Vector2i(6, row)) != ""
+	check("ac_3_create_fails top is tree, synthoid or sentinel", tops_refused and snapshot(g) == before)
+	g = flat()
 	for i in 63:
 		g.trees[Vector2i(i % 12, 4 + i / 12)] = true
 	check("ac_3_create_fails 64 objects counted", g.object_count() == 64)
@@ -97,6 +123,8 @@ func ac_4_absorb_energy() -> void:
 	check("ac_4_absorb_energy synthoid +3", g.absorb(Vector2i(5, 1)) == "" and g.energy == 14 and g.synthoids.is_empty())
 	g.heights[5][9] = 0
 	check("ac_4_absorb_energy sentinel +4", g.absorb(Vector2i(9, 5)) == "" and g.energy == 18 and g.sentinels.size() == 1)
+	g.boulders[Vector2i(4, 2)] = 2
+	check("ac_4_absorb_energy boulder +2", g.absorb(Vector2i(4, 2)) == "" and g.energy == 20 and g.boulder_count(Vector2i(4, 2)) == 1)
 	g.energy = 61
 	g.synthoids[Vector2i(5, 1)] = true
 	g.absorb(Vector2i(5, 1))
@@ -242,34 +270,35 @@ func ac_17_level_constraints() -> void:
 	for n in range(1, 11):
 		var g := Levels.build(n)
 		var why := ""
-		# Sentinels: each stands on the highest tile of the highest block not excluded.
+		# Sentinels: each on the highest flat tile of the highest block not excluded.
 		var excluded := {}
 		for s in g.sentinels:
 			var t: Vector2i = s.tile
 			var best := 0
 			for z in g.size:
 				for x in g.size:
-					if not excluded.has(block_of(Vector2i(x, z))):
+					if g.flat[z][x] and not excluded.has(block_of(Vector2i(x, z))):
 						best = maxi(best, g.heights[z][x])
-			if excluded.has(block_of(t)) or g.height(t) != best:
+			if excluded.has(block_of(t)) or g.height(t) != best or not g.is_flat(t):
 				why = "sentinel placement"
 			for dz in range(-1, 2):
 				for dx in range(-1, 2):
 					excluded[block_of(t) + Vector2i(dx, dz)] = true
 		var low := Levels.lowest_sentinel_altitude(g)
 		for t in g.trees:
-			if g.sentinel_at(t) >= 0 or t == g.player_tile or g.height(t) >= low:
+			if g.sentinel_at(t) >= 0 or t == g.player_tile or g.height(t) >= low or not g.is_flat(t):
 				why = "tree placement"
 		if g.trees.size() > 48 - 3 * g.sentinels.size() or g.trees.size() < 10 or g.trees.size() > 32:
 			why = "tree count"
-		if g.height(g.player_tile) > mini(6, low) or g.occupied(g.player_tile) and g.object_at(g.player_tile) != "":
+		if g.height(g.player_tile) > mini(6, low) or g.object_at(g.player_tile) != "" or not g.is_flat(g.player_tile):
 			why = "start tile"
-		for z in g.size:
-			for x in g.size:
+		var corners: Array = Levels.stages(n).final
+		for z in 32:
+			for x in 32:
 				for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]:
 					var u := Vector2i(x, z) + d
-					if g.in_bounds(u) and absi(g.heights[z][x] - g.height(u)) > 4:
-						why = "step > 4"
+					if u.x >= 0 and u.y >= 0 and u.x < 32 and u.y < 32 and absi(corners[z][x] - corners[u.y][u.x]) > 3:
+						why = "corner step > 3"
 		if why != "":
 			print("level %d violates: %s" % [n, why])
 			ok = false
@@ -285,7 +314,7 @@ func ac_18_sentinels_idle_until_first_action() -> void:
 	var free := Vector2i(-1, -1)
 	for z in g.size:
 		for x in g.size:
-			if free.x < 0 and g.can_see(Vector2i(x, z)) and not g.occupied(Vector2i(x, z)):
+			if free.x < 0 and g.is_flat(Vector2i(x, z)) and g.can_see(Vector2i(x, z)) and not g.occupied(Vector2i(x, z)):
 				free = Vector2i(x, z)
 	check("ac_18_sentinels_idle first action succeeds", g.create(free) == "" and g.awake)
 	g.advance(12.0)
@@ -318,3 +347,211 @@ func ac_20_energy_carry_and_retry() -> void:
 	var again := Levels.retry(l)
 	check("ac_20_energy_carry_and_retry retry original", again.level == 3 and again.energy == 25 and again.state == "playing")
 	check("ac_20_energy_carry_and_retry none after 10", Levels.next(Levels.build(10)) == null)
+
+
+func ac_44_create_boulder() -> void:
+	var g := guarded()
+	var t := Vector2i(6, 1)
+	check("ac_44_create_boulder succeeds", g.create(t, "boulder") == "")
+	check("ac_44_create_boulder energy -2", g.energy == 8)
+	check("ac_44_create_boulder one boulder", g.boulder_count(t) == 1 and g.object_at(t) == "boulder")
+	check("ac_44_create_boulder surface +0.5 m", is_equal_approx(g.surface_height(t), 0.5) and is_equal_approx(g.top_position(t).y, 0.5))
+	check("ac_44_create_boulder tile still free", not g.occupied(t))
+	check("ac_44_create_boulder second boulder and synthoid on top", g.create(t, "boulder") == "" and g.create(t) == "" and g.object_at(t) == "synthoid")
+
+
+func ac_46_trees_not_creatable() -> void:
+	var g := guarded()
+	g.energy = 30
+	var before := snapshot(g)
+	var refused := true
+	for t in [Vector2i(6, 1), g.player_tile]:
+		refused = refused and g.create(t, "tree") != "" and g.create(t, "") != "" and g.create(t, "sentinel") != ""
+	check("ac_46_trees_not_creatable refused with reason", refused)
+	check("ac_46_trees_not_creatable nothing changed", snapshot(g) == before and g.trees.is_empty() and g.boulders.is_empty())
+
+
+func ac_47_stacks() -> void:
+	var g := guarded()
+	g.energy = 40
+	var t := Vector2i(6, 1)
+	var ok := true
+	for i in 6:
+		ok = ok and g.create(t, "boulder") == ""
+	check("ac_47_stacks six boulders", ok and g.boulder_count(t) == 6)
+	var before := snapshot(g)
+	check("ac_47_stacks seventh refused", g.create(t, "boulder") != "" and g.boulder_count(t) == 6 and snapshot(g) == before)
+	check("ac_47_stacks synthoid on top of boulders", g.create(t) == "" and g.object_at(t) == "synthoid" and g.boulder_count(t) == 6)
+	check("ac_47_stacks nothing on a synthoid", g.create(t, "boulder") != "" and g.create(t) != "")
+
+
+func ac_48_absorb_top_only() -> void:
+	var g := guarded()
+	g.energy = 20
+	var t := Vector2i(6, 1)
+	g.create(t, "boulder")
+	g.create(t, "boulder")
+	g.create(t)
+	check("ac_48_absorb_top_only spent 7", g.energy == 20 - 7)
+	var gained := []
+	for i in 3:
+		var e := g.energy
+		g.absorb(t)
+		gained.append(g.energy - e)
+	check("ac_48_absorb_top_only +3 then +2, +2", gained == [3, 2, 2] and g.boulder_count(t) == 0 and g.object_at(t) == "")
+	check("ac_48_absorb_top_only conservation", g.energy == 20)
+	g.create(g.player_tile, "boulder")
+	var before := snapshot(g)
+	check("ac_48_absorb_top_only own tile refused", g.absorb(g.player_tile) != "" and g.boulder_count(g.player_tile) == 1 and snapshot(g) == before)
+
+
+func ac_49_boulders_block_sight() -> void:
+	var g := flat()
+	var far := Vector2i(6, 1)
+	g.boulders[Vector2i(3, 1)] = 6
+	check("ac_49_boulders_block_sight stack hides tile", not g.can_see(far))
+	g.boulders.erase(Vector2i(3, 1))
+	check("ac_49_boulders_block_sight removing shows it", g.can_see(far))
+
+
+func ac_50_energy_math() -> void:
+	var g := guarded()
+	g.energy = 2
+	var refused := g.create(Vector2i(6, 1)) != "" and g.energy == 2
+	check("ac_50_energy_math 2 energy: synthoid refused", refused)
+	check("ac_50_energy_math 2 energy: boulder ok, exactly 0 left", g.create(Vector2i(6, 1), "boulder") == "" and g.energy == 0)
+	g = guarded()
+	g.energy = 1
+	check("ac_50_energy_math 1 energy: neither", g.create(Vector2i(6, 1)) != "" and g.create(Vector2i(6, 1), "boulder") != "" and g.energy == 1)
+	g = guarded()
+	for i in 61:
+		g.trees[Vector2i(i % 12, 4 + i / 12)] = true
+	check("ac_50_energy_math 63 objects: one more works", g.object_count() == 63 and g.create(Vector2i(6, 1)) == "" and g.object_count() == 64)
+	check("ac_50_energy_math 64 objects: refused", g.create(Vector2i(7, 1), "boulder") != "")
+
+
+func ac_54_generator_stages() -> void:
+	var ok := true
+	var failed := 0
+	for n in range(1, 11):
+		var st: Dictionary = Levels.stages(n)
+		var outs: Array = st.outputs
+		ok = ok and outs.size() == 1024 and outs.min() >= 0 and outs.max() <= 255
+		ok = ok and variance(st.smoothed) < variance(st.raw)
+		for key in ["scaled", "repaired", "final"]:
+			for row in st[key]:
+				ok = ok and row.min() >= 1 and row.max() <= 11
+		var lo := 99
+		var hi := 0
+		for row in st.final:
+			lo = mini(lo, row.min())
+			hi = maxi(hi, row.max())
+		ok = ok and lo == 1 and hi == 11
+		if not ok:
+			print("stages failed on level %d" % n)
+			ok = true
+			failed += 1
+	ok = failed == 0
+	check("ac_54_generator_stages all levels", ok)
+
+
+func variance(grid: Array) -> float:
+	var sum := 0.0
+	var n := 0
+	for row in grid:
+		for v in row:
+			sum += v
+			n += 1
+	var mean := sum / n
+	var acc := 0.0
+	for row in grid:
+		for v in row:
+			acc += (v - mean) * (v - mean)
+	return acc / n
+
+
+func ac_55_no_pits_or_spikes() -> void:
+	var bad := 0
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		for z in g.size:
+			for x in g.size:
+				var t := Vector2i(x, z)
+				var above := true
+				var below := true
+				for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					if g.in_bounds(t + d):
+						above = above and g.height(t) >= g.height(t + d) + 2
+						below = below and g.height(t) <= g.height(t + d) - 2
+				if (above and g.sentinel_at(t) < 0) or below:
+					bad += 1
+	check("ac_55_no_pits_or_spikes none in 10 levels", bad == 0)
+
+
+func ac_56_smooth_not_noise() -> void:
+	var steps_ok := true
+	var mean_ok := true
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		var corners: Array = Levels.stages(n).final
+		for z in 32:
+			for x in 32:
+				for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+					var u := Vector2i(x, z) + d
+					if u.x < 32 and u.y < 32 and absi(corners[z][x] - corners[u.y][u.x]) > 3:
+						steps_ok = false
+		var sum := 0.0
+		var count := 0
+		for z in g.size:
+			for x in g.size:
+				for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+					if g.in_bounds(Vector2i(x, z) + d):
+						sum += absf(g.height(Vector2i(x, z)) - g.height(Vector2i(x, z) + d))
+						count += 1
+		var mean := sum / count
+		mean_ok = mean_ok and mean >= 0.3 and mean <= 1.2
+	check("ac_56_smooth_not_noise corner steps <= 3", steps_ok)
+	check("ac_56_smooth_not_noise mean tile step 0.3..1.2", mean_ok)
+
+
+func ac_57_flat_share() -> void:
+	var ok := true
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		var flats := 0
+		for row in g.flat:
+			flats += row.count(true)
+		var share := float(flats) / (g.size * g.size)
+		ok = ok and share >= 0.2 and share <= 0.8
+	check("ac_57_flat_share 20%..80% in every level", ok)
+
+
+func ac_58_sentinels_on_peaks() -> void:
+	var ok := true
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		var best := 0
+		var block_best := {}
+		for z in g.size:
+			for x in g.size:
+				if g.flat[z][x]:
+					best = maxi(best, g.heights[z][x])
+					var b := block_of(Vector2i(x, z))
+					block_best[b] = maxi(block_best.get(b, 0), g.heights[z][x])
+		ok = ok and g.height(g.sentinels[0].tile) == best and best >= 9
+		for s in g.sentinels:
+			ok = ok and g.height(s.tile) >= 5 and g.height(s.tile) == block_best[block_of(s.tile)] and g.is_flat(s.tile)
+	check("ac_58_sentinels_on_peaks all levels", ok)
+
+
+func ac_59_deterministic() -> void:
+	var same := true
+	var seen := []
+	var distinct := true
+	for n in range(1, 11):
+		same = same and signature(Levels.build(n)) == signature(Levels.build(n)) and Levels.stages(n).outputs == Levels.stages(n).outputs
+		var grid := str(Levels.build(n).heights)
+		distinct = distinct and not seen.has(grid)
+		seen.append(grid)
+	check("ac_59_deterministic two builds identical", same)
+	check("ac_59_deterministic levels pairwise different", distinct)

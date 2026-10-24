@@ -4,10 +4,14 @@ extends RefCounted
 ## (Sentinels first), otherwise hop to the best visible tile.
 
 const SECONDS_PER_ACTION := 1.0
-const HOP_RADIUS := 10  # tiles around the player considered for a hop
+const HOP_RADIUS := 14  # tiles around the player considered for a hop
+
+
+static var _visited := {}
 
 
 static func solve(g: GameLogic, max_steps := 200) -> bool:
+	_visited = {}
 	for _i in max_steps:
 		if g.state != "playing":
 			break
@@ -32,9 +36,11 @@ static func _step(g: GameLogic) -> bool:
 	for z in range(maxi(p.y - HOP_RADIUS, 0), mini(p.y + HOP_RADIUS + 1, g.size)):
 		for x in range(maxi(p.x - HOP_RADIUS, 0), mini(p.x + HOP_RADIUS + 1, g.size)):
 			var t := Vector2i(x, z)
-			if g.occupied(t) or not g.can_see(t):
+			if g.occupied(t) or not g.is_flat(t) or not g.can_see(t):
 				continue
-			var score := 2.0 * g.height(t) - 0.3 * _nearest(g, t)
+			var score := 2.0 * g.height(t) - 0.5 * _nearest(g, t) + 20.0 * _sentinels_seen_from(g, t)
+			if _visited.has(t):
+				score -= 100.0
 			if g.watched_from(t):
 				score -= 5.0
 			if score > best_score:
@@ -42,6 +48,7 @@ static func _step(g: GameLogic) -> bool:
 				best = t
 	if best.x < 0:
 		return false
+	_visited[g.player_tile] = true
 	return g.create(best) == "" and g.move(best) == ""
 
 
@@ -50,3 +57,16 @@ static func _nearest(g: GameLogic, t: Vector2i) -> float:
 	for s in g.sentinels:
 		d = minf(d, Vector2(t - s.tile).length())
 	return d
+
+
+static func _sentinels_seen_from(g: GameLogic, t: Vector2i) -> int:
+	## How many Sentinels the player would see from tile t (player_tile is
+	## restored before returning).
+	var home := g.player_tile
+	g.player_tile = t
+	var n := 0
+	for s in g.sentinels:
+		if g.can_see(s.tile):
+			n += 1
+	g.player_tile = home
+	return n

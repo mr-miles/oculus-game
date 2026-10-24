@@ -6,12 +6,16 @@ extends RefCounted
 ## flat grid (used by tests and by Levels).
 
 const SYNTHOID_COST := 3
+const BOULDER_COST := 2
+const BOULDER_ENERGY := 2
+const BOULDER_HEIGHT := 0.5          # metres per boulder
+const MAX_BOULDERS_PER_TILE := 6
 const TREE_ENERGY := 1
 const SYNTHOID_ENERGY := 3
 const SENTINEL_ENERGY := 4
 const START_ENERGY := 10
 const MAX_ENERGY := 63
-const MAX_OBJECTS := 64             # trees, synthoids, Sentinels and the player's body together
+const MAX_OBJECTS := 64             # trees, boulders, synthoids, Sentinels and the player's body together
 const SENTINEL_TURN_STEP := 28.125  # degrees per turn
 const SENTINEL_TURN_TIME := 11.94   # seconds between turns
 const SENTINEL_FOV := 56.25         # degrees, total
@@ -28,6 +32,10 @@ const MSG_HIDDEN := "You can't see that tile"
 const MSG_OCCUPIED := "Something is already there"
 const MSG_OWN_TILE := "You are standing there"
 const MSG_NO_ENERGY := "Not enough energy: a body costs 3"
+const MSG_NO_ENERGY_BOULDER := "Not enough energy: a boulder costs 2"
+const MSG_BAD_KIND := "You can only make synthoids and boulders"
+const MSG_NOT_FLAT := "That tile is not flat"
+const MSG_STACK_FULL := "That stack of boulders is full"
 const MSG_NOTHING := "Nothing to absorb there"
 const MSG_FULL := "The valley is full of objects"
 const MSG_OVER := "This hill is finished"
@@ -45,6 +53,8 @@ var size := 12
 var heights: Array = []  # heights[z][x]
 var synthoids := {}      # Vector2i -> true
 var trees := {}          # Vector2i -> true
+var boulders := {}       # Vector2i -> count (1..MAX_BOULDERS_PER_TILE) under any top object
+var flat: Array = []     # flat[z][x]: true if the tile's four corners are equal
 ## One Dictionary per Sentinel: tile (Vector2i), facing (degrees in [0, 360);
 ## direction on the ground is Vector2(sin, cos) in (x, z)), dir (+1 or -1, the
 ## fixed turn direction), turned (cumulative signed degrees turned), clock
@@ -68,6 +78,10 @@ func _init(grid_size := 12) -> void:
 		row.resize(size)
 		row.fill(0)
 		heights.append(row)
+		var f := []
+		f.resize(size)
+		f.fill(true)
+		flat.append(f)
 
 
 func in_bounds(t: Vector2i) -> bool:
@@ -78,9 +92,22 @@ func height(t: Vector2i) -> int:
 	return heights[t.y][t.x]
 
 
+func is_flat(t: Vector2i) -> bool:
+	return flat[t.y][t.x]
+
+
+func boulder_count(t: Vector2i) -> int:
+	return boulders.get(t, 0)
+
+
+func surface_height(t: Vector2i) -> float:
+	## Altitude plus half a metre per boulder on the tile.
+	return float(height(t)) + BOULDER_HEIGHT * boulder_count(t)
+
+
 func top_position(t: Vector2i) -> Vector3:
-	## World position of the centre of a tile's top face.
-	return Vector3((t.x + 0.5) * TILE, float(height(t)), (t.y + 0.5) * TILE)
+	## World position of the centre of a tile's top (its surface, boulders included).
+	return Vector3((t.x + 0.5) * TILE, surface_height(t), (t.y + 0.5) * TILE)
 
 
 func eye_position() -> Vector3:
@@ -100,27 +127,34 @@ func sentinels_left() -> int:
 
 
 func object_at(t: Vector2i) -> String:
-	## What stands on tile t: "sentinel", "tree", "synthoid" or "".
+	## The top object on tile t: "sentinel", "tree", "synthoid", "boulder" or "".
 	if sentinel_at(t) >= 0:
 		return "sentinel"
 	if trees.has(t):
 		return "tree"
 	if synthoids.has(t):
 		return "synthoid"
+	if boulders.has(t):
+		return "boulder"
 	return ""
 
 
 func object_count() -> int:
-	return trees.size() + synthoids.size() + sentinels.size() + 1
+	var n := trees.size() + synthoids.size() + sentinels.size() + 1
+	for t in boulders:
+		n += boulders[t]
+	return n
 
 
 func occupied(t: Vector2i) -> bool:
-	return object_at(t) != "" or t == player_tile
+	## Boulders alone do not make a tile occupied; a top object or the player does.
+	var top := object_at(t)
+	return (top != "" and top != "boulder") or t == player_tile
 
 
 func can_see(t: Vector2i) -> bool:
 	## A tile is visible if nothing blocks the line from the player's eye to its
-	## top centre. Terrain columns and trees block; synthoids do not.
+	## top centre. Terrain columns, boulders and trees block; synthoids do not.
 	if not in_bounds(t) or t == player_tile:
 		return false
 	return _clear(eye_position(), top_position(t), player_tile, t)
@@ -137,7 +171,7 @@ func _clear(from: Vector3, to: Vector3, skip_a: Vector2i, skip_b: Vector2i) -> b
 		if c == last or c == skip_a or c == skip_b or not in_bounds(c):
 			continue
 		last = c
-		var top := float(height(c))
+		var top := surface_height(c)
 		if trees.has(c):
 			top += TREE_HEIGHT
 		if p.y < top:
@@ -175,23 +209,35 @@ func drain_countdown() -> float:
 	return left * _TICK
 
 
-func create(t: Vector2i) -> String:
-	## Make a synthoid on t. Returns "" or the reason it failed.
+func create(t: Vector2i, kind := "synthoid") -> String:
+	## Make a "synthoid" or a "boulder" on t. Returns "" or the reason it failed.
 	var why := _blocked(t)
 	if why != "":
 		return why
-	if t == player_tile:
+	if kind != "synthoid" and kind != "boulder":
+		return MSG_BAD_KIND
+	var own := t == player_tile
+	if own and kind == "synthoid":
 		return MSG_OWN_TILE
-	if occupied(t):
+	var top := object_at(t)
+	if top != "" and top != "boulder":
 		return MSG_OCCUPIED
-	if not can_see(t):
+	if not own and not can_see(t):
 		return MSG_HIDDEN
-	if energy < SYNTHOID_COST:
-		return MSG_NO_ENERGY
+	if not is_flat(t):
+		return MSG_NOT_FLAT
+	if kind == "boulder" and boulder_count(t) >= MAX_BOULDERS_PER_TILE:
+		return MSG_STACK_FULL
+	if energy < (SYNTHOID_COST if kind == "synthoid" else BOULDER_COST):
+		return MSG_NO_ENERGY if kind == "synthoid" else MSG_NO_ENERGY_BOULDER
 	if object_count() >= MAX_OBJECTS:
 		return MSG_FULL
-	synthoids[t] = true
-	_set_energy(energy - SYNTHOID_COST)
+	if kind == "synthoid":
+		synthoids[t] = true
+		_set_energy(energy - SYNTHOID_COST)
+	else:
+		boulders[t] = boulder_count(t) + 1
+		_set_energy(energy - BOULDER_COST)
 	_wake()
 	return ""
 
@@ -210,7 +256,7 @@ func move(t: Vector2i) -> String:
 
 
 func absorb(t: Vector2i) -> String:
-	## Absorb the visible tree, synthoid or Sentinel on t.
+	## Absorb the top object (tree, synthoid, Sentinel or boulder) of the visible tile t.
 	var why := _blocked(t)
 	if why != "":
 		return why
@@ -228,6 +274,12 @@ func absorb(t: Vector2i) -> String:
 		"synthoid":
 			synthoids.erase(t)
 			_set_energy(energy + SYNTHOID_ENERGY)
+		"boulder":
+			if boulders[t] <= 1:
+				boulders.erase(t)
+			else:
+				boulders[t] -= 1
+			_set_energy(energy + BOULDER_ENERGY)
 		"sentinel":
 			sentinels.remove_at(sentinel_at(t))
 			_set_energy(energy + SENTINEL_ENERGY)
