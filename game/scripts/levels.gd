@@ -11,6 +11,7 @@ const MAX_ALT := 11
 const MAX_STEP := 4  # largest altitude difference between neighbours
 const BLOCK := 4     # Sentinel placement block edge, tiles
 const START_MAX_ALT := 6
+const MAX_ATTEMPTS := 100000  # random draws before placement gives up
 
 const SENTINELS := [1, 1, 2, 2, 3, 3, 4, 4, 5, 6]
 
@@ -121,17 +122,21 @@ static func _place_sentinels(g: GameLogic, rng: RandomNumberGenerator, count: in
 static func _place_trees(g: GameLogic, rng: RandomNumberGenerator, count: int) -> void:
 	## Distinct empty tiles strictly below the lowest Sentinel.
 	var limit := lowest_sentinel_altitude(g)
-	while g.trees.size() < count:
+	var attempts := 0
+	while g.trees.size() < count and attempts < MAX_ATTEMPTS:
+		attempts += 1
 		var t := Vector2i(rng.randi() % g.size, rng.randi() % g.size)
 		if g.height(t) < limit and not g.occupied(t):
 			g.trees[t] = true
+	assert(g.trees.size() == count, "could not place all trees")
 
 
 static func _place_start(g: GameLogic, rng: RandomNumberGenerator) -> void:
 	## An empty tile at altitude <= min(6, lowest Sentinel altitude).
 	var limit := mini(START_MAX_ALT, lowest_sentinel_altitude(g))
-	while true:
+	for _i in MAX_ATTEMPTS:
 		var t := Vector2i(rng.randi() % g.size, rng.randi() % g.size)
 		if g.height(t) <= limit and not g.occupied(t):
 			g.player_tile = t
 			return
+	assert(false, "no start tile")
