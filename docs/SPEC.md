@@ -350,6 +350,12 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-38 (Build) No person names appear in game text, assets or docs (grep gate
   against a names list kept outside the repo, run in CI).
 
+Known simplification (kept from the prototype): visibility tests only whether
+terrain or a tree blocks the line to a tile's top centre; the column of the
+target tile itself never blocks. A Sentinel standing higher than the player is
+therefore visible and absorbable from a lower tile if nothing is in the way.
+The original needs the tile's top face in view, which forces more climbing.
+
 ## 13. Audit against the research and open items
 
 Research = `docs/research/01-sentinel.md` Part B (BBC Micro source). "Align" =
