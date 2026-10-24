@@ -16,5 +16,13 @@ chk "Quest 2 in supportedDevices"       'grep -q "quest2|" <<<"$MAN"'
 chk "Oculus VR intent category"         'grep -q "com.oculus.intent.category.VR" <<<"$MAN"'
 chk "OpenXR immersive HMD category"     'grep -q "org.khronos.openxr.intent.category.IMMERSIVE_HMD" <<<"$MAN"'
 chk "APK signature (v2) valid"          '"$BUILD_TOOLS/apksigner" verify "$APK" >/dev/null 2>&1'
+ELF=$(python3 -I - "$APK" <<'PY'
+import sys, zipfile, struct
+z = zipfile.ZipFile(sys.argv[1])
+bad = [n for n in z.namelist() if n.endswith(".so") and struct.unpack_from("<H", z.read(n), 18)[0] != 183]  # 183 = EM_AARCH64
+print("\n".join(bad))
+PY
+)
+chk "all .so files are ELF aarch64 (Quest 2 = Snapdragon XR2, ARM64)" '[ -z "$ELF" ]'
 ls -l "$APK" | awk '{print "size:", $5, "bytes"}'
 exit $BAD

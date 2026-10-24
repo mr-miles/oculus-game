@@ -5,22 +5,16 @@
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
 MODE="${1:-debug}"
-[ -x "$GODOT" ] || { echo "Run tools/setup-toolchain.sh first"; exit 1; }
 cd "$GAME"
 
-echo "== plugin"
-rm -rf addons; mkdir -p addons; cp -r "$TC/vendors/addons/godotopenxrvendors" addons/
-
-echo "== import + tests"
-"$GODOT" --headless --path . --import >/dev/null 2>&1 || true
-"$GODOT" --headless --path . --script res://tests/test_logic.gd 2>&1 | grep -E "^(PASS|FAIL|FAILURES)"
-"$GODOT" --headless --path . --script res://tests/test_scene.gd 2>&1 | grep -E "SCENE|scene smoke"
+echo "== plugin + tests"
+"$REPO_ROOT/tools/run-tests.sh"
 
 echo "== android build template"
 if [ ! -f android/.build_version ] || [ "$(cat android/.build_version)" != "$GODOT_TEMPLATE_DIR" ]; then
   rm -rf android; mkdir -p android/build
   python3 -I -c "import zipfile,sys;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" \
-    "$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_DIR/android_source.zip" android/build
+    "$XDG_DATA_HOME/godot/export_templates/$GODOT_TEMPLATE_DIR/android_source.zip" android/build
   chmod +x android/build/gradlew
   touch android/build/.gdignore
   echo -n "$GODOT_TEMPLATE_DIR" > android/.build_version

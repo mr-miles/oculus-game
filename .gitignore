@@ -1,1 +1,19 @@
+# toolchain and caches (mise.toml puts SDK, Gradle cache, Godot templates here)
 .toolchain/
+# Godot
+.godot/
+*.translation
+# generated android build template, plugin copy, build output
+game/android/
+game/addons/
+game/build/
+# signing material and packages
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+# editor / OS
+.vscode/
+.idea/
+.DS_Store

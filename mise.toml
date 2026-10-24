@@ -1,0 +1,57 @@
+# Reproducible toolchain for the headless Quest build. Install mise
+# (https://mise.jdx.dev), then:  mise run setup && mise run build
+# Everything lands in ~/.local/share/mise (tools) and ./.toolchain (SDK, Gradle
+# cache, Godot templates/settings; git-ignored). Versions are pinned here; the
+# download checksums are pinned in mise.lock (tools) and tools/setup-android.sh
+# (SDK, export templates).
+
+[settings]
+lockfile = true
+experimental = true
+
+[tools]
+java = "temurin-17.0.21+9"
+godot = "4.7.2-stable"            # aqua registry: godotengine/godot, Linux x86_64 editor
+
+# Android command-line tools (revision 11076708); sdkmanager installs the rest in `setup`.
+"http:android-cmdline-tools" = { version = "11076708", url = "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip", checksum = "sha256:2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258" }
+
+# OpenXR Vendors plugin, copied into the project at build time.
+"http:godot-openxr-vendors" = { version = "5.1.0-stable", url = "https://github.com/GodotVR/godot_openxr_vendors/releases/download/5.1.0-stable/godotopenxrvendorsaddon.zip", checksum = "sha256:6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911" }
+
+[env]
+# Keep Godot's per-user state (export templates, editor settings) and the SDK/Gradle
+# caches inside the repo's .toolchain so nothing hidden in $HOME can mask a missing step.
+TOOLCHAIN_DIR = "{{config_root}}/.toolchain"
+ANDROID_HOME = "{{config_root}}/.toolchain/android-sdk"
+ANDROID_SDK_ROOT = "{{config_root}}/.toolchain/android-sdk"
+GRADLE_USER_HOME = "{{config_root}}/.toolchain/gradle"
+XDG_DATA_HOME = "{{config_root}}/.toolchain/xdg/data"
+XDG_CONFIG_HOME = "{{config_root}}/.toolchain/xdg/config"
+
+[tasks.setup]
+description = "Install SDK packages, Godot Android templates, keystore, settings (idempotent)"
+depends = ["tools-install"]
+run = "tools/setup-android.sh"
+
+[tasks.tools-install]
+description = "Install the pinned tools"
+run = "mise install"
+hide = true
+
+[tasks.test]
+description = "Headless logic tests and scene smoke test"
+run = "tools/run-tests.sh"
+
+[tasks.build]
+description = "Tests, then export the debug-signed APK to game/build/quest-sentinel.apk"
+run = "tools/build-apk.sh debug"
+
+[tasks.verify]
+description = "Check the APK: package, ABI, ELF machine, OpenXR libs, Quest manifest, signature"
+run = "tools/verify-apk.sh"
+
+[tasks.ci]
+description = "setup, then build (runs tests and verify-apk)"
+depends = ["setup"]
+run = "mise run build"
