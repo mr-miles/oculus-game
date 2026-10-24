@@ -15,10 +15,11 @@ screens differ from this text, trust the screens.
 
 ## 1. Developer account and Developer Mode — [HUMAN], once
 
-1. **[HUMAN]** Sign in at <https://developers.meta.com> with the same Meta account that owns the headset.
-2. **[HUMAN]** Create a developer organisation when asked (any name; accept the developer terms). Meta may ask you to verify the account with a phone number or payment method.
-3. **[HUMAN]** On the phone, open the **Meta Horizon** app → **Menu → Devices** → pick the headset (it must be powered on and connected) → **Headset Settings → Developer Mode** → switch **on**. (Older versions: Settings → Developer Mode.)
-4. **[HUMAN]** Reboot the headset (hold power → Restart).
+1. **[HUMAN]** Check that your account is the **owner** of the headset.  If you are not logged in as the owner account and are one of the shared profiles then subsequent steps will fail.  This is important to verify because subsequent steps won't give any hints that this is root cause.
+2. **[HUMAN]** Sign in at <https://developers.meta.com> with the same Meta account that **owns** the headset.
+3. **[HUMAN]** Create a developer organisation when asked (any name; accept the developer terms). Meta may ask you to verify the account with a phone number or payment method.
+4. **[HUMAN]** On the phone, open the **Meta Horizon** app → **Menu → Devices** → pick the headset (it must be powered on and connected) → **Headset Settings → Developer Mode** → switch **on**. (Older versions: Settings → Developer Mode.)  If you are not the owner of the headset then the app will ask you to enter a pairing code but no pairing code will show up in the headset.
+6. **[HUMAN]** Reboot the headset (hold power → Restart).
 
 If the toggle is missing, the account is not yet part of a developer organisation: redo steps 1–2.
 
@@ -32,13 +33,14 @@ Choose **A (adb)** or **B (Meta Quest Developer Hub)**.
 2. **[HUMAN]** Connect the headset to the computer with the USB-C cable. Put the headset on.
 3. **[HUMAN]** In the headset a dialog "Allow USB debugging?" appears: tick **Always allow from this computer**, then **Allow**. (If it doesn't appear: unplug and replug, or toggle Developer Mode off/on.)
 3a. On Linux, if `adb devices` shows nothing or `no permissions`: add a udev rule for Meta's vendor id and replug, e.g. `echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2833", MODE="0666", GROUP="plugdev"' | sudo tee /etc/udev/rules.d/51-quest.rules && sudo udevadm control --reload`. (Id from the research pack; confirm with `lsusb`.) The headset may also show a "USB connected / allow access to data" (MTP) prompt: accept it.
+3b. If the device doesn't show in the device list, you can try `usbls` which lists connected devices, to confirm that the OS has registered and mounted your device.
 4. On the computer:
    ```sh
    adb devices                 # should list one device as "device" (not "unauthorized" / "no permissions")
    adb install -r quest-sentinel.apk
    ```
    Expected: `Success`. (`-r` reinstalls over an older build. If you get `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, run `adb uninstall org.example.questsentinel` first: the signing key differs.)
-5. Optional, wireless afterwards: `adb tcpip 5555`, unplug, then `adb connect <headset-ip>:5555` (headset IP: Settings → Wi-Fi → your network). Both on the same network.
+6. Optional, wireless afterwards: `adb tcpip 5555`, unplug, then `adb connect <headset-ip>:5555` (headset IP: Settings → Wi-Fi → your network). Both on the same network.
 
 ### B. Meta Quest Developer Hub (MQDH)
 
