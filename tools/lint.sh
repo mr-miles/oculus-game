@@ -6,7 +6,7 @@ source "$(dirname "$0")/env.sh"
 cd "$GAME"
 "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
 fail=0
-for f in $(find . -name '*.gd' -not -path './addons/*' -not -path './.godot/*' | sort); do
+for f in $(find . -name '*.gd' -not -path './addons/*' -not -path './.godot/*' -not -path './android/*' -not -path './build/*' | sort); do
   out=$("$GODOT" --headless --path . --check-only --script "res://${f#./}" 2>&1 || true)
   bad=$(echo "$out" | grep -E "SCRIPT ERROR|Parse Error|^WARNING|^ERROR" | grep -vi openxr | grep -v "ObjectDB" || true)
   if [ -n "$bad" ]; then echo "LINT FAIL $f"; echo "$bad"; fail=1; fi
