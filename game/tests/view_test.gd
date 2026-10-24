@@ -80,3 +80,36 @@ func tree_bounds(tree: Node3D) -> AABB:
 		box = b if first else box.merge(b)
 		first = false
 	return box
+
+
+func ray_from(g: Node, from: Vector3, toward: Vector3) -> Vector2i:
+	## Point the right controller from `from` at `toward` and return the tile the ray selects.
+	var dir := (toward - from).normalized()
+	var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT
+	g.rig.right.global_transform = Transform3D(Basis.looking_at(dir, up), from)
+	return g.aimed_tile()
+
+
+func ray_down_at(g: Node, t: Vector2i) -> Vector2i:
+	var c: Vector3 = g.logic.top_position(t)
+	return ray_from(g, c + Vector3(0.1, 6.0, 0.1), c)
+
+
+func find_tile(g: Node, wanted: Callable) -> Vector2i:
+	for z in g.logic.size:
+		for x in g.logic.size:
+			if wanted.call(Vector2i(x, z)):
+				return Vector2i(x, z)
+	return Vector2i(-1, -1)
+
+
+func terrain_triangles(g: Node) -> Array:
+	## Every triangle of the terrain as {v: [3 positions], c: [3 colours]}.
+	var out := []
+	for m in g.find_child("Terrain", true, false).get_children():
+		var arrays: Array = (m as MeshInstance3D).mesh.surface_get_arrays(0)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var cols: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+		for i in range(0, verts.size(), 3):
+			out.append({"v": [verts[i], verts[i + 1], verts[i + 2]], "c": [cols[i], cols[i + 1], cols[i + 2]]})
+	return out

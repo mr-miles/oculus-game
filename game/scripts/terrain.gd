@@ -1,12 +1,16 @@
 class_name Terrain
 extends Node3D
-## The landscape as a few merged meshes (one per block of tiles), not one node
-## per tile: a 31x31 level would otherwise cost 961 draw calls on the Quest.
+## The landscape as one merged heightfield, cut into at most BLOCKS x BLOCKS
+## mesh instances (a 31x31 level as separate nodes would cost 961 draw calls on
+## the Quest). Built from the corner grid: each tile is two triangles split
+## along the a-d diagonal (a = front-left corner, d = back-right), so a ridge or
+## valley folds exactly where GameLogic.surface_height() says it does. A
+## vertical skirt down to y = 0 closes the border.
 
-const BLOCKS := 4  # blocks per side, so at most 16 mesh instances
+const BLOCKS := 4
 const LIGHT := Color(0.25, 0.55, 0.3)
 const DARK := Color(0.2, 0.45, 0.25)
-const WALL := Color(0.16, 0.34, 0.2)
+const SLOPED := Color(0.36, 0.34, 0.17)  # darker brown-green: no objects can stand here
 
 var _material := StandardMaterial3D.new()
 
@@ -23,13 +27,14 @@ func build(logic: GameLogic) -> void:
 		for bx in BLOCKS:
 			var st := SurfaceTool.new()
 			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			var any := false
+			var tiles := 0
 			for z in range(bz * per_block, mini((bz + 1) * per_block, logic.size)):
 				for x in range(bx * per_block, mini((bx + 1) * per_block, logic.size)):
 					_add_tile(st, logic, Vector2i(x, z))
-					any = true
-			if not any:
+					tiles += 1
+			if tiles == 0:
 				continue
+			st.generate_normals()
 			var m := MeshInstance3D.new()
 			m.name = "Block_%d_%d" % [bx, bz]
 			m.mesh = st.commit()
@@ -37,27 +42,39 @@ func build(logic: GameLogic) -> void:
 			add_child(m)
 
 
+func _corner(logic: GameLogic, cx: int, cz: int) -> Vector3:
+	return Vector3(cx * GameLogic.TILE, logic.corner(cx, cz), cz * GameLogic.TILE)
+
+
 func _add_tile(st: SurfaceTool, logic: GameLogic, t: Vector2i) -> void:
-	var s := GameLogic.TILE
-	var h := float(logic.height(t))
-	var x0 := t.x * s
-	var z0 := t.y * s
-	var top := LIGHT if (t.x + t.y) % 2 == 0 else DARK
-	_quad(st, Vector3(x0, h, z0), Vector3(x0 + s, h, z0), Vector3(x0 + s, h, z0 + s), Vector3(x0, h, z0 + s), Vector3.UP, top)
-	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		var n: Vector2i = t + d
-		var low := float(logic.height(n)) if logic.in_bounds(n) else 0.0
-		if low >= h:
-			continue
-		var n3 := Vector3(d.x, 0, d.y)
-		var along := Vector3(d.y, 0, d.x).abs() * s  # edge direction
-		var edge := Vector3(x0, 0, z0) + Vector3(s if d.x > 0 else 0, 0, s if d.y > 0 else 0)
-		_quad(st, edge + Vector3(0, low, 0), edge + along + Vector3(0, low, 0),
-				edge + along + Vector3(0, h, 0), edge + Vector3(0, h, 0), n3, WALL)
+	var a := _corner(logic, t.x, t.y)
+	var b := _corner(logic, t.x + 1, t.y)
+	var c := _corner(logic, t.x, t.y + 1)
+	var d := _corner(logic, t.x + 1, t.y + 1)
+	var color := SLOPED
+	if logic.is_flat(t):
+		color = LIGHT if (t.x + t.y) % 2 == 0 else DARK
+	_triangle(st, a, b, d, color)
+	_triangle(st, a, d, c, color)
+	# Skirt on the grid border.
+	if t.y == 0:
+		_wall(st, a, b, color)
+	if t.y == logic.size - 1:
+		_wall(st, c, d, color)
+	if t.x == 0:
+		_wall(st, a, c, color)
+	if t.x == logic.size - 1:
+		_wall(st, b, d, color)
 
 
-func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, normal: Vector3, color: Color) -> void:
+func _wall(st: SurfaceTool, top_1: Vector3, top_2: Vector3, color: Color) -> void:
+	var low_1 := Vector3(top_1.x, 0.0, top_1.z)
+	var low_2 := Vector3(top_2.x, 0.0, top_2.z)
+	_triangle(st, top_1, top_2, low_2, color)
+	_triangle(st, top_1, low_2, low_1, color)
+
+
+func _triangle(st: SurfaceTool, p: Vector3, q: Vector3, r: Vector3, color: Color) -> void:
 	st.set_color(color)
-	st.set_normal(normal)
-	for v in [a, b, c, a, c, d]:
+	for v in [p, q, r]:
 		st.add_vertex(v)

@@ -439,8 +439,8 @@ func aimed_tile() -> Vector2i:
 
 
 func _ray_tile() -> Vector2i:
-	## First tile whose column (terrain plus anything standing on it) the
-	## right-hand ray enters. Objects count as part of the column, so aiming at
+	## First tile whose ground surface (slopes included) or standing object the
+	## right-hand ray reaches. Objects count as part of their tile, so aiming at
 	## a tree's canopy or a synthoid's head selects that tile.
 	var from := rig.ray_origin()
 	var dir := rig.ray_direction()
@@ -448,7 +448,7 @@ func _ray_tile() -> Vector2i:
 	for i in range(1, steps):
 		var p := from + dir * (i * RAY_STEP)
 		var t := Vector2i(int(floor(p.x / GameLogic.TILE)), int(floor(p.z / GameLogic.TILE)))
-		if logic.in_bounds(t) and p.y <= logic.top_position(t).y + _object_height(t):
+		if logic.in_bounds(t) and p.y <= logic.surface_height(p.x, p.z) + _object_height(t):
 			return t
 	return Vector2i(-1, -1)
 
@@ -481,10 +481,12 @@ func _process(delta: float) -> void:
 	if logic.in_bounds(t):
 		_cursor.visible = true
 		_cursor.position = logic.top_position(t) + Vector3(0, 0.03, 0)
-		var c := Color(1, 1, 0.2) if logic.can_see(t) else Color(1, 0.2, 0.2)
+		var c := _disc_colour(t)
 		(_cursor.material_override as StandardMaterial3D).albedo_color = c
 		rig.set_ray_length(maxf(rig.ray_origin().distance_to(_cursor.position), 0.2))
-		_show_ghost(t)
+		_ghost.visible = false
+		if logic.is_flat(t):
+			_show_ghost(t)
 	else:
 		_ghost.visible = false
 		_cursor.visible = false
@@ -506,3 +508,10 @@ func _capsule() -> CapsuleMesh:
 	cap.radius = 0.35
 	cap.height = SYNTHOID_HEIGHT
 	return cap
+
+
+func _disc_colour(t: Vector2i) -> Color:
+	## Yellow: flat and visible. Red: flat but hidden. Grey: sloped, nothing can happen there.
+	if not logic.is_flat(t):
+		return Color(0.6, 0.6, 0.6)
+	return Color(1, 1, 0.2) if logic.can_see(t) else Color(1, 0.2, 0.2)
