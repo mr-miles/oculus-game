@@ -43,13 +43,25 @@ Grid of 31x31 square tiles (edge 2 m, as in the original), each a flat-topped co
   (tile top + 1.6 m) to the tile's top centre (prototype `can_see`, extended:
   a tree blocks the line below its top, 3 m above its tile, as in the original).
   Synthoids do not block sight. Your own tile is never targetable.
-- **Occupied**: holds a tree, synthoid, Sentinel, or you.
+- **Occupied**: holds a tree, synthoid, Sentinel, or you. Boulders alone do not
+  make a tile occupied (see stacks below), except the tile you stand on.
+- **Stack**: the objects on one tile from the ground up: 0 to 6 boulders, then
+  at most one top object (synthoid, tree or Sentinel). Only boulders can have
+  something on top of them; nothing can be created on a tree, synthoid or
+  Sentinel. **Surface height** of a tile = altitude + 0.5 m per boulder
+  (BOULDER_HEIGHT). Your eye is the surface height of your tile + 1.6 m.
+  Boulders block sight like terrain; synthoids do not.
 
 Constants (single source: `GameLogic` constants):
 
 | Name | Value |
 |---|---|
 | SYNTHOID_COST | 3 energy |
+| BOULDER_COST | 2 energy |
+| BOULDER_ENERGY (absorbing one) | 2 |
+| BOULDER_HEIGHT | 0.5 m |
+| MAX_BOULDERS_PER_TILE | 6 |
+| MAX_OBJECTS | 64 (trees, boulders, synthoids and Sentinels all count) |
 | TREE_ENERGY | 1 |
 | SYNTHOID_ENERGY (absorbing one) | 3 |
 | SENTINEL_ENERGY (absorbing one) | 4 |
@@ -63,12 +75,25 @@ Constants (single source: `GameLogic` constants):
 
 Rules:
 
-1. Create: needs a visible, unoccupied tile and energy >= 3; costs 3.
-2. Transfer (move): needs a visible synthoid; you now stand on that tile, the
-   synthoid is consumed (no energy change), view height is the new tile top +
-   1.6 m.
-3. Absorb: needs a visible tree (+1), synthoid (+3) or Sentinel (+4); the
-   object is removed. You may not absorb the tile you stand on.
+1. Create, two kinds only: a **synthoid** (cost 3) or a **boulder** (cost 2),
+   on a visible tile whose stack can take it (top is not a tree, synthoid or
+   Sentinel; fewer than 6 boulders for a boulder). Needs the energy; fewer than
+   MAX_OBJECTS objects exist. A synthoid or boulder created on a tile with
+   boulders goes on top of them. **Trees cannot be created by the player** (they
+   exist only from level generation). A synthoid cannot be created on your own
+   tile; a **boulder can**: it is added under you, the tile stays yours, and
+   your eye rises by 0.5 m. This is how you climb without a second body; it
+   costs 2 energy per half metre, and you cannot take that energy back while
+   you stand there (you may not absorb your own tile).
+2. Transfer (move): needs a visible tile whose top object is a synthoid; you
+   now stand on that tile, the synthoid is consumed (no energy change), view
+   height is that tile's surface height (altitude + boulders under the
+   synthoid) + 1.6 m.
+3. Absorb: takes the **top object** of the aimed visible tile only: tree (+1),
+   synthoid (+3), Sentinel (+4) or boulder (+2). A synthoid standing on boulders
+   is absorbed first, then each boulder one at a time. You may not absorb
+   the tile you stand on. Create cost equals absorb yield, so create then
+   absorb returns exactly the energy spent.
 4. Watched: you are watched when a Sentinel's facing is within its FOV of the
    direction to you AND the Sentinel has line of sight to your eye (same
    terrain rule, from the Sentinel's eye at tile top + 2.2 m). While watched
@@ -77,18 +102,55 @@ Rules:
    watching stops. Turn and drain values are from the original game, which
    gives the player time to hide; they are constants so play-testing can
    change them.
-5. Win a level: sentinel counter reaches 0. Lose a level: a drain happens while energy is already 0 (energy 0 alone is not a loss; as in the original). Create is refused if it would take energy below 0, or if 64 objects already exist.
+5. Win a level: sentinel counter reaches 0. Lose a level: a drain happens while energy is already 0 (energy 0 alone is not a loss; as in the original). Create is refused if it would take energy below 0, or if MAX_OBJECTS objects already exist.
    Sentinels are idle (no turning, no drain) until the player's first create, absorb or transfer (as in the original; turning your head does not wake them).
 6. Win the game: finish level 10.
 
 ## 4. Levels and progression
 
 Ten levels, each a deterministic function of its number (`Levels.build(n)`
-returns the same level every time; a fixed seed per level). All levels use the
-original's world: **31x31 tiles, altitudes 1-11**. Terrain is generated from
-the seed by a simple deterministic smoothed-noise generator (not the original's
-bit-exact LFSR; see the audit in section 13), then spikes and troughs are
-smoothed so no tile differs from a neighbour by more than 4 altitude steps.
+returns the same level every time). All levels use the original's world:
+**31x31 tiles on a 32x32 grid of corner altitudes, altitudes 1-11**. Level n
+uses landscape number L(n) = n - 1 (so level 1 is landscape 0). Engineers may
+change L(n) per level, recorded in a table in `levels.gd`, only to make
+every generation AC below pass.
+
+### 4.1 Terrain generator (mountains and valleys, not random noise)
+
+The generator follows the structure of the original's 11 steps (research
+Part B 2.4) so ridges and valleys come from smoothing a seeded field. Every step
+is deterministic and exposed for tests as `Levels.stages(n)` (AC-54).
+
+1. **Seed** a 40-bit LFSR (5 bytes; feedback = bit 19 XOR bit 32 shifted into
+   bit 0; 8 shifts per output byte). Seed bits 0-15 = L(n) in BCD, bit 16 set.
+2. **Discard** 81 outputs.
+3. **Multiplier** M = 14 + (bits 0-2 + bits 3-6 of the next output), i.e.
+   14..36; for L = 0, M = 24.
+4. **Fill** a 32x32 grid of corner values with the next 1024 outputs (row by
+   row).
+5. **Smooth** (pass 1): each corner = average of itself and the next three
+   along its row (wrapping); then the same along columns.
+6. **Smooth** (pass 2): repeat step 5.
+7. **Scale**: value = floor(M x (data - 128) / 256) + 6, floor 0, +1, cap 11.
+8. **Spike/trough repair** (pass 1): a corner at least 2 above all four of its
+   neighbours is set to the highest neighbour; a corner at least 2 below
+   all four is set to the lowest neighbour. Edge corners compare with the
+   neighbours they have.
+9. **Spike/trough repair** (pass 2): repeat step 8.
+10. **Stretch and limit**: linearly stretch so the lowest corner is 1 and the
+    highest is 11 (integer: 1 + floor((a - min) x 10 / (max - min))); then
+    repeat until stable: lower any corner that is more than 3 above a
+    neighbour to neighbour + 3 (so no neighbouring corners differ by more
+    than 3).
+11. **Tiles**: a tile is **flat** when its four corners are equal (only flat
+    tiles can hold trees, Sentinels, the player and any created object, as in
+    the original). Tile altitude = round-half-up of the mean of its four
+    corners; the view draws tiles as columns of that altitude. Then place
+    Sentinels, trees and the player start (below).
+
+Differences from the original: tile slopes are drawn as steps (columns);
+step 10's stretch/limit is ours; the spike repair details are ours (the
+research only says "spike/trough smoothing twice").
 
 | Level | Sentinels | Trees | Starting energy |
 |---|---|---|---|
@@ -109,14 +171,18 @@ Trees per level are always within the original's 10-32 and at most
 Generation rules every level must satisfy (all checked by tests):
 
 - **Sentinel placement** (original): the 31x31 grid is cut into 4x4-tile
-  blocks; the first Sentinel stands on the highest tile of the highest block;
-  each next Sentinel on the highest tile of the highest block not yet
+  blocks; the first Sentinel stands on the highest flat tile of the highest block;
+  each next Sentinel on the highest flat tile of the highest block not yet
   excluded; a used block and its 8 neighbouring blocks are excluded. Sentinel
   tiles are flat and never share a tile.
 - **Trees**: distinct, flat, empty tiles, each at an altitude below the
   lowest Sentinel's.
 - **Player start**: a random (seeded) flat, empty tile with altitude <=
   min(6, lowest Sentinel altitude).
+- **Shape checks** (AC-55 to AC-58): no pit or spike tiles; altitudes use the
+  full 1-11 range; neighbouring altitude steps at most 3; between 20% and 80% of
+  tiles are flat; the first Sentinel is on the highest flat tile with
+  altitude >= 9, and every Sentinel has altitude >= 5.
 - **Solvable**: from the start at least one tree or free tile is visible, and
   a scripted greedy solver bot clears levels 1-10 in logic only.
 - Total world energy stays within the original's budget: trees + 3 x Sentinels
@@ -135,9 +201,10 @@ stands on the aimed tile.
 
 | Input | Action |
 |---|---|
-| Right trigger | Create synthoid on aimed tile |
+| Right trigger | Create the selected object (synthoid or boulder) on the aimed tile |
+| Right grip (`grip_click`) | Toggle what the trigger creates: Synthoid (3) <-> Boulder (2). Default Synthoid at level start and after a retry |
 | Right A | **Move**: transfer into the aimed synthoid |
-| Right B | Absorb aimed tree/synthoid/Sentinel |
+| Right B | Absorb the top object of the aimed tile (tree, synthoid, boulder or Sentinel) |
 | Left thumbstick left/right | Snap turn 30 degrees (rotates the XR origin around the player) |
 | Left Y | Pause menu: Resume / Restart level / Back to lobby |
 | Left X | Hint line: shows the one-line suggestion for the current state |
@@ -149,6 +216,17 @@ XR origin is at the new tile top; the camera then sits at height tile + 1.6 m
 (room-scale offset kept). Pressing A with no valid target does nothing but
 shows the HUD message "Aim at a blue synthoid you can see" and a short
 low-pitch beep. Every failed action shows a one-line reason on the HUD.
+
+Creating: why a mode toggle on the grip. Trigger-create is the most frequent
+action and stays one press. A separate button for boulders would use A/B/stick
+click, which are Move, Absorb and (reserved) recentre; the grip is the only
+free button the right index/middle fingers reach without moving the hand. The
+current mode is always shown on the HUD ("Create: Synthoid (3)" or "Create:
+Boulder (2)") and the aim disc shows a ghost of the object (blue capsule or
+grey slab), so the mode cannot be mistaken. A mode change plays a short tone.
+Boulders can be aimed at on any visible tile, including the tile you stand on
+(boulder mode only), and the aimed boulder or stack is whatever the ray hits
+over that tile.
 
 Feedback: each action plays a distinct sound and a short controller haptic
 pulse (success 0.2 s / failure 0.05 s).
@@ -174,29 +252,39 @@ final page's primary button):
 1. **Story** (section 2, condensed to <= 60 words).
 2. **Rules** (what to do; energy; Sentinels watching; win and lose).
 3. **How to play**: a walkthrough in 5 numbered steps with a controller
-   diagram: 1 point and see yellow; 2 trigger = make a body; 3 A = move into
-   it; 4 B = absorb trees; 5 absorb the Sentinels. Each step names the
+   diagram, 6 numbered steps: 1 point and see yellow; 2 trigger = make a body
+   (a synthoid); 3 A = move into it; 4 squeeze grip to switch to boulders,
+   trigger to stack them and climb (also under your feet); 5 B = absorb trees,
+   boulders and bodies for energy; 6 absorb the Sentinels. Each step names the
    button.
 4. **Ready**: Start.
 
 Start loads level 1 with 10 energy. Returning from the pause menu or ending
 brings the user back here.
 
-## 8. HUD (viewport-anchored)
+## 8. HUD (viewport-anchored, at the top)
 
-The HUD is a child of the XR camera (head-locked), never of a controller. It
-sits 1.2 m in front of the eyes, 0.3 m below the centre of gaze, unshaded and
-drawn on top. Contents, always visible: Energy (number and bar), Level
-("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3 left"),
-watched warning (red text and red border when watched, with a countdown to the next drain), and the one-line message. The prototype's left-hand label is
-removed.
+The HUD is a child of the XR camera (head-locked), never of a controller. It is
+a strip at the **top** of the view: centred 1.2 m in front of the eyes and 0.45 m
+above the centre of gaze (about 20 degrees up), unshaded and drawn on top, so the
+middle of the view stays clear. Contents, always visible: Energy (number and
+bar), Level ("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3
+left"), the create mode ("Create: Synthoid (3)" / "Create: Boulder (2)"), the
+watched warning (red text and red border when watched, with a countdown to the
+next drain), and the one-line message and hint (also in the top strip, on a
+second row). Every HUD element is above the gaze centre line and inside the
+view. The prototype's left-hand label is removed.
 
 ## 9. Visual changes
 
-- **Bigger trees**: tree height 3.0 m (prototype was a 1.2 m capsule), trunk
-  radius 0.25 m, canopy radius 0.9 m, clearly taller than a synthoid (1.6 m)
-  and than the player's eye (1.6 m). Absorb/aim hit area covers the whole
-  tile top.
+- **Bigger trees, mostly leaves**: tree height 3.0 m (prototype was a 1.2 m
+  capsule), clearly taller than a synthoid (1.6 m) and than the player's eye
+  (1.6 m). The tree is a short brown trunk (nodes `Trunk`: 1.2 m high, radius
+  0.2 m) under a large green leaf mass (node `Canopy`: 1.8 m high, i.e. 60% of
+  the tree, radius 0.9 m, starting 1.0 m above the tile). Absorb/aim hit area
+  covers the whole tile top.
+- Boulders: grey, 0.5 m high, covering most of the tile (radius 0.8 m), stacked
+  with no gaps; the ghost preview is a translucent boulder or synthoid.
 - Sentinels (red tall figures, yellow nose) face the direction they look; the
   nose shows facing. A counter ring above each Sentinel is optional.
 - Synthoids blue, as in the prototype.
@@ -209,11 +297,14 @@ removed.
   testable; the view only calls them.
 - **Test seams (required so every AC is automatable)**: `Main` exposes
   `press(button: String)` (calls the same handler as the controller signal,
-  names `trigger_click`, `ax_button`, `by_button`, `by_left_button`...),
+  names `trigger_click`, `grip_click`, `ax_button`, `by_button`, `by_left_button`...),
+  `GameLogic.create(tile, kind)` with kind `"synthoid"` or `"boulder"` (any
+  other kind, including `"tree"`, is refused with a reason),
+  `Levels.stages(n)` (the generator's intermediate grids, AC-54),
   `aim_at(tile: Vector2i)` (override for the ray), `advance(seconds: float)`
   (steps sentinels, drain and timers deterministically), and nodes named
   `Hud`, `HudEnergy`, `HudLevel`, `HudSentinels`, `HudMessage`,
-  `HudWatched`, `XRCamera3D`, `XROrigin3D`, `LeftController`,
+  `HudWatched`, `HudMode`, `XRCamera3D`, `XROrigin3D`, `LeftController`,
   `RightController`. `Lobby` exposes `press_start()`, `next()`, `back()` and
   nodes `LobbyPanel`, `LobbyPage`, `StartButton`.
 - Tests: GDScript headless scripts under `game/tests/`, run by
@@ -246,10 +337,11 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-2 (Logic) Create on a visible free tile costs exactly 3 energy and adds a
   synthoid there.
 - AC-3 (Logic) Create fails (no state change, reason string returned) when
-  energy < 3, tile hidden, tile occupied, tile is the player's, or 64 objects
-  already exist.
-- AC-4 (Logic) Absorbing a tree gives +1, a synthoid +3, a Sentinel +4; each
-  removes the object; energy is capped at 63.
+  energy is below the kind's cost (synthoid 3, boulder 2), tile hidden or not flat, the
+  tile's top is a tree, synthoid or Sentinel, the kind is a synthoid and the
+  tile is the player's, or MAX_OBJECTS (64, boulders included) already exist.
+- AC-4 (Logic) Absorbing a tree gives +1, a synthoid +3, a boulder +2, a
+  Sentinel +4; each removes the object; energy is capped at 63.
 - AC-5 (Logic) Absorb fails on a hidden target, an empty tile, or one's own tile.
 - AC-6 (Logic) A tall column on the line of sight makes a tile not visible; so
   does a tree (3 m) in the way; a synthoid does not.
@@ -292,8 +384,8 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   (first on the highest block's highest tile; used block and 8 neighbours
   excluded); trees are on distinct flat empty tiles below the lowest Sentinel;
   trees <= 48 - 3 x Sentinels and within 10..32; start tile flat, empty,
-  altitude <= min(6, lowest Sentinel altitude); no neighbour altitude
-  difference above 4.
+  altitude <= min(6, lowest Sentinel altitude); no neighbouring corner
+  altitudes differ by more than 3.
 - AC-18 (Logic) Sentinels are idle until the first create, absorb or
   transfer: after `advance(60)` with no action no Sentinel has turned and
   energy is unchanged; after the first action they turn and watch normally.
@@ -310,8 +402,9 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-23 (Scene) Lobby has pages Story, Rules, How to play, Ready; `next()`/`back()`
   move between them and page text is non-empty.
 - AC-24 (Scene) Story page text contains the words "Spark" and "Sentinel"; Rules
-  page mentions energy (the number 3 and 4 appear); How to play lists 5
-  numbered steps naming trigger, A and B.
+  page mentions energy (the numbers 2, 3 and 4 appear); How to play lists 6
+  numbered steps naming trigger, grip, A and B and the words "boulder" and
+  "Sentinel".
 - AC-25 (Scene) `StartButton` is visible on every page; `press_start()` loads
   level 1 with energy 10 and HUD showing "Level 1 of 10".
 - AC-26 (Scene) Pause menu "Back to lobby" returns to the lobby.
@@ -320,7 +413,8 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 - AC-27 (Scene) `Hud` is a descendant of `XRCamera3D` and not of either controller;
   its local transform is constant while the camera moves.
-- AC-28 (Scene) `Hud` local position is (0, -0.3 +- 0.05, -1.2 +- 0.1).
+- AC-28 (Scene) `Hud` local position is (0, +0.45 +- 0.05, -1.2 +- 0.1), i.e. above
+  the gaze centre, not below or at it.
 - AC-29 (Scene) HUD text shows energy as a number that updates after create
   and absorb.
 - AC-30 (Scene) `HudSentinels` reads "Sentinels: k of N left" and decrements
@@ -350,6 +444,81 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-38 (Build) No person names appear in game text, assets or docs (grep gate
   against a names list kept outside the repo, run in CI).
 
+**Board changes (v3): trees, HUD, boulders, terrain**
+
+*Trees*
+
+- AC-40 (Scene) Each tree has `Trunk` and `Canopy` mesh nodes; the canopy's
+  AABB height divided by the whole tree's AABB height is >= 0.5 (spec: 0.6), and
+  the canopy bottom is >= 0.9 m above the tile top.
+- AC-41 (Scene) Canopy AABB width is between 1.4 and 1.9 m, the trunk's width
+  is <= 0.5 m and less than a third of the canopy's, the canopy's material is
+  green-dominant and the trunk's is not (red >= green > blue).
+
+*HUD*
+
+- AC-42 (Scene) `HudEnergy`, `HudLevel`, `HudSentinels`, `HudMode`, `HudWatched`
+  and `HudMessage` each have camera-local y between +0.25 and +0.65 m (at
+  z = -1.2) and |x| <= 0.8 m: all above the gaze line and inside the view.
+- AC-52 (Scene) `HudMode` reads "Create: Synthoid (3)" at level start and after
+  a retry, and "Create: Boulder (2)" after one `press("grip_click")`.
+
+*Boulders*
+
+- AC-43 (Scene) `press("grip_click")` toggles the create mode synthoid <->
+  boulder and nothing else; pressing it any number of times never yields a
+  third mode (no tree).
+- AC-44 (Logic) Create a boulder on a visible empty flat tile: energy -2, one
+  boulder on the tile, the tile's surface height rises by 0.5 m, the tile is
+  still free for another boulder or a synthoid on top.
+- AC-45 (Scene) Boulder mode, `aim_at` the player's own tile, trigger: energy -2,
+  the player's tile is unchanged, boulders under the player = 1, and after
+  `advance(0.3)` `XROrigin3D` y is higher by 0.5 m (+-1 cm) with x and z
+  unchanged, and `XRCamera3D` y = altitude + 0.5 + 1.6 (room offset zero).
+  The same press in synthoid mode on the own tile fails with a reason.
+- AC-46 (Logic) `create(tile, "tree")` is refused with a reason and changes
+  nothing (energy, objects), on any tile including the player's; there is no
+  other code path that adds a tree after level generation.
+- AC-47 (Logic) Stacks: up to 6 boulders on a tile; the 7th is refused; a
+  synthoid can be created on top of boulders; nothing can be created on a tile
+  whose top is a tree, a synthoid or a Sentinel.
+- AC-53 (Scene) With a synthoid on top of 2 boulders at tile T: `aim_at(T)`,
+  `press("ax_button")`, `advance(0.3)`: `XRCamera3D` y = altitude(T) + 1.0 + 1.6
+  (+-1 cm) and the boulders stay on T.
+- AC-48 (Logic) Absorb takes the top object only: synthoid on 2 boulders gives +3
+  then +2, +2 in three absorbs; absorbing your own tile fails (boulders under you
+  stay); creating then absorbing a boulder or synthoid returns exactly the
+  energy spent (conservation).
+- AC-49 (Logic) A stack of 6 boulders (3 m) on a tile between the eye and a
+  tile behind it makes that tile not visible; removing the boulders makes it
+  visible again.
+- AC-50 (Logic) Energy math: with energy 2 a boulder can be created and a
+  synthoid cannot; with energy 1 neither; after the create the energy is
+  exactly start - cost; with 63 objects one more create works, with 64 it
+  fails (boulders count).
+- AC-51 (Scene) The lobby's How-to-play page has 6 numbered steps; step 4 contains
+  "grip" and "boulder".
+
+*Terrain*
+
+- AC-54 (Logic) `Levels.stages(n)` returns, for n=1..10: the LFSR outputs used
+  (1024 corner values after the 81 discarded), the corner grids after smoothing
+  pass 2, after scale (all in 1..11), after repair pass 2, and after
+  stretch/limit; the smoothed grid has lower variance than the raw one, and
+  the final grid's min is 1 and max is 11.
+- AC-55 (Logic) For all 10 levels, no tile is a pit or a spike: no tile (Sentinel
+  tiles exempt from the spike test) has altitude >= 2 above all of its
+  4-neighbours, and none has altitude >= 2 below all of them.
+- AC-56 (Logic) For all 10 levels: neighbouring corner altitudes differ by at
+  most 3; the mean absolute difference between neighbouring tiles is between
+  0.3 and 1.2 (smooth, not noise, but not flat).
+- AC-57 (Logic) For all 10 levels, between 20% and 80% of tiles are flat.
+- AC-58 (Logic) For all 10 levels: the first Sentinel is on the highest flat
+  tile of the grid and its altitude >= 9; every Sentinel has altitude >= 5 and
+  is the highest flat tile in its 4x4 block.
+- AC-59 (Logic) The LFSR and `Levels.build` are deterministic: two builds are
+  identical, and levels 1..10 have pairwise different altitude grids.
+
 Known simplification (kept from the prototype): visibility tests only whether
 terrain or a tree blocks the line to a tile's top centre; the column of the
 target tile itself never blocks. A Sentinel standing higher than the player is
@@ -365,19 +534,19 @@ spec follows the research. "Departure" = deliberate, with reason.
 |---|---|---|---|---|
 | 1 | Grid | 31x31 tiles (32x32 corners) | 31x31 | Align (earlier draft was wrong) |
 | 2 | Altitudes | 1-11 | 1-11, 1 step = 1 m (original: step = tile width) | Align range; departure on scale: 11 m peaks keep eye-height comfortable, prototype scale |
-| 3 | Tile shapes / slopes | 16 shapes | flat columns only | Departure: prototype is columns; slopes are v2 |
-| 4 | Terrain generator | 40-bit LFSR, 11 steps, 10,000 landscapes | seeded smoothed noise, 10 levels | Departure: bit-exactness not needed for our own levels; the output ranges and smoothing rule match |
+| 3 | Tile shapes / slopes | 16 shapes | corners define flat/not flat (as original); drawn as columns, no sloped faces | Align on flatness; departure on drawing: columns, slopes are v2 |
+| 4 | Terrain generator | 40-bit LFSR, 11 steps, 10,000 landscapes | same LFSR and step structure (section 4.1), 10 levels | Align on structure; departures: the spike repair and the stretch/limit step are ours (research gives no detail), only 10 landscapes; earlier "simplified noise" departure removed |
 | 5 | Trees | 10-32, cap 48 - 3 x enemies, below lowest enemy | 10..28 by level, same cap and placement | Align |
 | 6 | Enemy count | 1 for landscapes 0-9, then 1 + tens digit, max 8 | 1,1,2,2,3,3,4,4,5,6 | Departure: gentler ramp for a family game and 10 levels |
 | 7 | Enemy kinds | one Sentinel (4), up to 7 optional sentries (3) | all enemies are Sentinels worth 4, all must be absorbed | Departure: one counter and one goal; sentries/Meanies are v2 |
 | 8 | Enemy placement | highest 4x4 block, used block + 8 neighbours removed | same | Align |
 | 9 | Sentinel on a tower | yes | tile only | Departure: no towers in v1 |
 | 10 | Player start | flat empty, altitude <= min(6, lowest enemy) | same | Align (replaces earlier "height <= 1, 6 tiles away") |
-| 11 | Energy values | robot 3, tree 1, boulder 2, Sentinel 4, sentry 3 | synthoid 3, tree 1, Sentinel 4 | Align; boulders/sentries not in v1 |
+| 11 | Energy values | robot 3, tree 1, boulder 2, Sentinel 4, sentry 3 | synthoid 3, tree 1, boulder 2, Sentinel 4 | Align; sentries not in v1 |
 | 12 | Start / max energy | 10 / 63 | 10 / 63 | Align |
 | 13 | Total landscape energy | at most 49 | trees + 3 x enemies <= 48 tested; 49 not separately tested | Align by construction; meaning of 49 not fully established in the research |
 | 14 | Create cost = absorb yield | yes | yes | Align |
-| 15 | Object limit | 64 | 64 | Align |
+| 15 | Object limit | 64 | 64, boulders included | Align |
 | 16 | Next level | landscape + remaining energy (cap 63) | level n+1; energy carried, min 10 | Departure: fixed 10-level progression; minimum 10 avoids dead ends |
 | 17 | Win | absorb the Sentinel, then hyperspace | absorb all Sentinels | Departure: no hyperspace in v1 |
 | 18 | Hyperspace (cost 3) | yes | none | Departure: v2 candidate |
@@ -401,11 +570,18 @@ confirmation of button mapping and comfort is a manual post-release check;
 terrain must be a merged mesh (AC-39) because 961 separate tile nodes would
 exceed the Quest draw-call budget.
 
+| 33 | Boulders | create 2, absorb 2, stack 0.5, objects sit on boulders | same, 6 per tile max | Align; the cap of 6 is ours (comfort and draw cost) |
+| 34 | Create on own tile | own tile not targetable | boulder allowed on own tile, raises the eye | Departure (board request): gives a way to climb without a second body; energy cost stops abuse |
+| 35 | Creating trees | player can create trees (T) | cannot | Departure (board request) |
+| 36 | Create keys | R, T, B | trigger + grip mode toggle | Departure: VR controls |
+| 37 | Sentinels drain robots to boulders | yes | Sentinels drain only the player | Departure: v1 simplicity |
+| 38 | Boulder side targeting | must hit a boulder side to stack | aim at any tile; goes on top | Departure: simpler VR aim |
+
 ## 14. Traceability (engineers fill in)
 
 Every AC is checkable headlessly (`mise run test`, or `mise run build` for
 AC-37); the device checks in section 10 are extra, not ACs. One row per AC;
-fill the test file and test function when the test is written.
+fill the test file and test function when the test is written. Existing tests for AC-3, AC-4, AC-17, AC-24 and AC-28 change with the v3 text above.
 
 | AC | Test file (under `game/tests/`) | Test name |
 |---|---|---|
@@ -448,3 +624,23 @@ fill the test file and test function when the test is written.
 | AC-37 | `tools/check-test-gate.sh` (`mise run test-gate`); APK: `mise run build` runs `verify-apk.sh` | `TEST GATE OK` lines; `verify` OK lines |
 | AC-38 | `test_ac_38_names_gate.gd`, `tools/check-names.sh` | `ac_38 ...` PASS lines |
 | AC-39 | `test_ac_39_terrain_meshes.gd` | `ac_39 ...` PASS lines |
+| AC-40 | | |
+| AC-41 | | |
+| AC-42 | | |
+| AC-43 | | |
+| AC-44 | | |
+| AC-45 | | |
+| AC-46 | | |
+| AC-47 | | |
+| AC-48 | | |
+| AC-49 | | |
+| AC-50 | | |
+| AC-51 | | |
+| AC-52 | | |
+| AC-53 | | |
+| AC-54 | | |
+| AC-55 | | |
+| AC-56 | | |
+| AC-57 | | |
+| AC-58 | | |
+| AC-59 | | |
