@@ -44,6 +44,34 @@ and returns to the lobby.
 
 Screenshots (rendered headlessly, see below) are in `docs/screenshots/`.
 
+## Rules, levels and tests
+
+All rules are pure code in `game/scripts/game_logic.gd` (no nodes) and the ten
+levels in `game/scripts/levels.gd`; the VR view only calls them.
+
+- **Energy.** Start 10 (carried to the next level, at least 10, at most 63). A
+  synthoid costs 3; absorbing gives tree 1, synthoid 3, Sentinel 4. At most 64
+  objects exist at once.
+- **Sentinels.** Idle until your first create, absorb or move. Then each turns
+  28.125 degrees every 11.94 s (only while it is not watching you) and watches
+  a 56.25 degree cone. While you are inside the cone with a clear line of sight
+  you lose 1 energy after 7.14 s, then every 1.74 s. Hide behind terrain or a
+  tree, or absorb it. Energy 0 is not yet a loss: you lose when a drain
+  happens at 0.
+- **Win / lose.** Absorb every Sentinel to clear the hill; after level 10 the
+  ending card shows. A loss lets you retry with the level's original energy.
+- **Levels.** `Levels.build(n)` is deterministic (31 x 31, altitudes 1-11, no
+  neighbour step above 4). Sentinels use the original's 4 x 4 block rule, trees
+  stand below the lowest Sentinel, the start is a low empty tile. Counts per
+  level are in `docs/SPEC.md` section 4.
+
+**Tests.** `mise run test` runs every `game/tests/test_ac_*.gd` (one Godot
+process each; `PASS`/`FAIL` lines) and the scene smoke test, and exits non-zero
+on any failure or script error. `docs/SPEC.md` section 14 maps every AC to its
+test. `mise run test-gate` proves the gate itself (AC-37): it plants a failing
+and a broken test and checks that `run-tests.sh` fails. `mise run build` runs
+tests, lint and the APK checks.
+
 ## Chipset: why an arm64 APK from an x86-64 build machine
 
 The Quest 2 is an ARM64 device (Qualcomm Snapdragon XR2), so the APK must contain
@@ -77,7 +105,7 @@ arm64-Linux build-tools, so that path is untested and likely rough.
 ## Build (from a fresh clone)
 
 Prerequisites: Linux x86-64, bash, curl, python3 (3.8+, for zip extraction), 4 GB
-RAM, about 6 GB free disk (mise tools 0.7 GB, SDK 0.8 GB, Gradle cache 1.3 GB,
+RAM, about 6 GB free disk (the repo's own disk must have it: setup fails with a curl write error when full) (mise tools 0.7 GB, SDK 0.8 GB, Gradle cache 1.3 GB,
 templates 0.4 GB, build 0.8 GB), and network access to github.com
 (+ release-assets.githubusercontent.com), dl.google.com, maven.google.com,
 repo.maven.apache.org, services.gradle.org, downloads.gradle.org,
@@ -91,6 +119,7 @@ mise trust
 mise run setup                         # installs pinned tools, SDK, templates (~3 min)
 mise run build                         # tests, export, verify -> game/build/quest-sentinel.apk (~5 min)
 mise run test                          # all headless tests (rules ACs, scene tests)
+mise run test-gate                     # AC-37: the test task must fail on a failing test
 mise run lint                          # parse every script, fail on any error or warning
 mise run names                         # AC-38 gate; NAMES_FILE=<list kept outside the repo> (CI sets it)
 mise run screenshots                   # re-render docs/screenshots/ (needs xvfb-run and Mesa GL)

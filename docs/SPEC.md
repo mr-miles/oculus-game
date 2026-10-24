@@ -350,6 +350,12 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-38 (Build) No person names appear in game text, assets or docs (grep gate
   against a names list kept outside the repo, run in CI).
 
+Known simplification (kept from the prototype): visibility tests only whether
+terrain or a tree blocks the line to a tile's top centre; the column of the
+target tile itself never blocks. A Sentinel standing higher than the player is
+therefore visible and absorbable from a lower tile if nothing is in the way.
+The original needs the tile's top face in view, which forces more climbing.
+
 ## 13. Audit against the research and open items
 
 Research = `docs/research/01-sentinel.md` Part B (BBC Micro source). "Align" =
@@ -439,6 +445,6 @@ fill the test file and test function when the test is written.
 | AC-34 | `test_ac_34_aim_tree_tile.gd` | `ac_34 ...` PASS lines |
 | AC-35 | `test_ac_35_sentinel_facing.gd` | `ac_35 ...` PASS lines |
 | AC-36 | `test_ac_36_feedback.gd` | `ac_36 ...` PASS lines |
-| AC-37 | | |
+| AC-37 | `tools/check-test-gate.sh` (`mise run test-gate`); APK: `mise run build` runs `verify-apk.sh` | `TEST GATE OK` lines; `verify` OK lines |
 | AC-38 | `test_ac_38_names_gate.gd`, `tools/check-names.sh` | `ac_38 ...` PASS lines |
 | AC-39 | `test_ac_39_terrain_meshes.gd` | `ac_39 ...` PASS lines |

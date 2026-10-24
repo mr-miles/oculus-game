@@ -42,6 +42,10 @@ hide = true
 description = "Headless logic tests and scene smoke test"
 run = "tools/run-tests.sh"
 
+[tasks.test-gate]
+description = "AC-37: prove the test task exits non-zero on a failing or broken test"
+run = "tools/check-test-gate.sh"
+
 [tasks.lint]
 description = "Parse every GDScript file; fail on any error or warning"
 run = "tools/lint.sh"
