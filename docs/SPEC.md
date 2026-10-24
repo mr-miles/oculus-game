@@ -37,7 +37,7 @@ scares. Text is short, large, and readable by an 8-year-old.
 
 ## 3. Rules
 
-Grid of square tiles (edge 2 m), each a column with whole-metre height. Terms:
+Grid of 31x31 square tiles (edge 2 m, as in the original), each a flat-topped column of altitude 1 to 11 (1 altitude step = 1 m). Objects stand only on tiles. Terms:
 
 - **Visible**: no terrain column or tree blocks the straight line from your eye
   (tile top + 1.6 m) to the tile's top centre (prototype `can_see`, extended:
@@ -77,42 +77,55 @@ Rules:
    watching stops. Turn and drain values are from the original game, which
    gives the player time to hide; they are constants so play-testing can
    change them.
-5. Win a level: sentinel counter reaches 0. Lose a level: energy reaches 0.
+5. Win a level: sentinel counter reaches 0. Lose a level: a drain happens while energy is already 0 (energy 0 alone is not a loss; as in the original). Create is refused if it would take energy below 0, or if 64 objects already exist.
+   Sentinels are idle (no turning, no drain) until the player's first create, absorb or transfer (as in the original; turning your head does not wake them).
 6. Win the game: finish level 10.
 
 ## 4. Levels and progression
 
 Ten levels, each a deterministic function of its number (`Levels.build(n)`
-returns the same level every time; a fixed seed per level). Terrain is
-layered sine/hash heights clamped to 0..9 (Sentinel tiles are raised to be
-local peaks, at least 2 m above all tiles within 2 tiles).
+returns the same level every time; a fixed seed per level). All levels use the
+original's world: **31x31 tiles, altitudes 1-11**. Terrain is generated from
+the seed by a simple deterministic smoothed-noise generator (not the original's
+bit-exact LFSR; see the audit in section 13), then spikes and troughs are
+smoothed so no tile differs from a neighbour by more than 4 altitude steps.
 
-| Level | Grid | Sentinels | Trees | Starting energy |
-|---|---|---|---|---|
-| 1 | 12x12 | 1 | 4 | 10 |
-| 2 | 12x12 | 1 | 5 | carried, min 10 |
-| 3 | 14x14 | 2 | 6 | carried, min 10 |
-| 4 | 14x14 | 2 | 7 | carried, min 10 |
-| 5 | 16x16 | 3 | 8 | carried, min 10 |
-| 6 | 16x16 | 3 | 9 | carried, min 10 |
-| 7 | 18x18 | 4 | 10 | carried, min 10 |
-| 8 | 18x18 | 4 | 11 | carried, min 10 |
-| 9 | 20x20 | 5 | 12 | carried, min 10 |
-| 10 | 20x20 | 6 | 14 | carried, min 10 |
+| Level | Sentinels | Trees | Starting energy |
+|---|---|---|---|
+| 1 | 1 | 10 | 10 |
+| 2 | 1 | 12 | carried, min 10 |
+| 3 | 2 | 14 | carried, min 10 |
+| 4 | 2 | 16 | carried, min 10 |
+| 5 | 3 | 18 | carried, min 10 |
+| 6 | 3 | 20 | carried, min 10 |
+| 7 | 4 | 22 | carried, min 10 |
+| 8 | 4 | 24 | carried, min 10 |
+| 9 | 5 | 26 | carried, min 10 |
+| 10 | 6 | 28 | carried, min 10 |
 
-Generation constraints every level must satisfy (all checked by tests):
-Sentinel tiles are distinct, at least 4 tiles apart (Chebyshev) and the highest
-local tiles; trees sit on distinct non-Sentinel tiles; the player start is a
-low tile (height <= 1) at least 6 tiles from every Sentinel, and is **not
-watched at start**; and the level is solvable: from the start there is
-always at least one visible free tile or tree, and the sum of reachable
-energy never makes the level impossible (design test: a scripted greedy solver
-bot clears levels 1-10 in logic only).
+Trees per level are always within the original's 10-32 and at most
+48 - 3 x Sentinels.
+
+Generation rules every level must satisfy (all checked by tests):
+
+- **Sentinel placement** (original): the 31x31 grid is cut into 4x4-tile
+  blocks; the first Sentinel stands on the highest tile of the highest block;
+  each next Sentinel on the highest tile of the highest block not yet
+  excluded; a used block and its 8 neighbouring blocks are excluded. Sentinel
+  tiles are flat and never share a tile.
+- **Trees**: distinct, flat, empty tiles, each at an altitude below the
+  lowest Sentinel's.
+- **Player start**: a random (seeded) flat, empty tile with altitude <=
+  min(6, lowest Sentinel altitude).
+- **Solvable**: from the start at least one tree or free tile is visible, and
+  a scripted greedy solver bot clears levels 1-10 in logic only.
+- Total world energy stays within the original's budget: trees + 3 x Sentinels
+  <= 48 (the research's "at most 49" total is not separately tested, see
+  section 13).
 
 Energy carries over between levels (capped at MAX_ENERGY, minimum 10 so a
 level never begins on a dead end). Progress persists only for the session; the
-lobby always starts at level 1 (no save game in v1). Total energy on a level
-is kept low so energy stays the scarce resource (trees plus start energy).
+lobby always starts at level 1 (no save game in v1).
 
 ## 5. User actions and controls
 
@@ -144,7 +157,7 @@ pulse (success 0.2 s / failure 0.05 s).
 
 - Level won: the last Sentinel is absorbed -> HUD "Hill cleared!" for 3 s,
   next level loads (level 10 -> ending card, then lobby).
-- Level lost: energy 0 -> "You ran out of energy. Pull the trigger to try
+- Level lost: a drain at energy 0 -> "You ran out of energy. Pull the trigger to try
   again." Trigger reloads the same level with its original start energy
   (not carried); Y offers "Back to lobby".
 - No lives, no timer other than the drain; restart is always available from
@@ -229,11 +242,12 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 **Rules and energy**
 
-- AC-1 (Logic) New game: energy 10, 1 Sentinel, player on tile with height <= 1.
+- AC-1 (Logic) New game: energy 10, 1 Sentinel, 31x31 grid, player on a flat empty tile with altitude <= min(6, Sentinel altitude).
 - AC-2 (Logic) Create on a visible free tile costs exactly 3 energy and adds a
   synthoid there.
 - AC-3 (Logic) Create fails (no state change, reason string returned) when
-  energy < 3, tile hidden, tile occupied, or tile is the player's.
+  energy < 3, tile hidden, tile occupied, tile is the player's, or 64 objects
+  already exist.
 - AC-4 (Logic) Absorbing a tree gives +1, a synthoid +3, a Sentinel +4; each
   removes the object; energy is capped at 63.
 - AC-5 (Logic) Absorb fails on a hidden target, an empty tile, or one's own tile.
@@ -253,8 +267,9 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-10 (Logic) While watched, no energy is lost before 7.14 s, 1 is lost at
   7.14 s, then 1 every 1.74 s; when watching stops the timer resets and the
   next watch again waits 7.14 s.
-- AC-11 (Logic) Energy 0 sets state `lost`; absorbing the last Sentinel sets
-  state `won` and counter 0; neither fires early.
+- AC-11 (Logic) A drain at energy 0 sets state `lost`; energy reaching 0 by
+  itself does not; absorbing the last Sentinel sets state `won` and counter 0;
+  neither fires early.
 
 **Move button (the prototype bug)**
 
@@ -270,12 +285,18 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 **Levels**
 
-- AC-16 (Logic) `Levels.build(n)` for n=1..10 matches the table (grid size,
-  Sentinel count, tree count, start energy) and is identical on two calls.
-- AC-17 (Logic) For all levels: Sentinels distinct, >= 4 apart, highest local
-  peaks (>= 2 m above tiles within 2); trees on distinct non-Sentinel tiles;
-  start height <= 1 and >= 6 tiles from each Sentinel.
-- AC-18 (Logic) For all levels the player is not watched at start.
+- AC-16 (Logic) `Levels.build(n)` for n=1..10 matches the table (Sentinel
+  count, tree count, start energy), has a 31x31 grid with every altitude in
+  1..11, and is identical on two calls.
+- AC-17 (Logic) For all levels: Sentinels follow the block-placement rule
+  (first on the highest block's highest tile; used block and 8 neighbours
+  excluded); trees are on distinct flat empty tiles below the lowest Sentinel;
+  trees <= 48 - 3 x Sentinels and within 10..32; start tile flat, empty,
+  altitude <= min(6, lowest Sentinel altitude); no neighbour altitude
+  difference above 4.
+- AC-18 (Logic) Sentinels are idle until the first create, absorb or
+  transfer: after `advance(60)` with no action no Sentinel has turned and
+  energy is unchanged; after the first action they turn and watch normally.
 - AC-19 (Logic) A greedy solver bot clears all 10 levels (headless, bounded
   steps).
 - AC-20 (Logic) Energy carries to the next level, capped 63, min 10; after a
@@ -323,23 +344,56 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   stub counter in tests).
 - AC-37 (Build) `mise run test` runs all tests above and exits non-zero on
   any failure; `mise run build` still produces the verified arm64 APK.
+- AC-39 (Scene) The 31x31 terrain is built from at most 16 mesh instances
+  (merged mesh, not one node per tile), so the scene stays Quest-friendly;
+  the existing scene smoke test still passes.
 - AC-38 (Build) No person names appear in game text, assets or docs (grep gate
   against a names list kept outside the repo, run in CI).
 
-## 13. Open items
+## 13. Audit against the research and open items
 
-- Departures from the original game (deliberate, for a short family game):
-  no Meanies, Sentries, hyperspace or boulders in v1 (Meanie and hyperspace
-  are the first candidates for v2); winning a level means absorbing all
-  Sentinels (original: absorb the Sentinel then hyperspace); levels are 10
-  hand-tuned seeded levels, not the original 10,000 landscapes or codes;
-  Sentinel is 56.25 degrees wide. Research flags enemy maximum sight distance
-  and port differences as open: v1 uses unlimited sight distance.
-- The research suggests a wrist-attached gauge; the HUD here is deliberately
-  head-locked as required.
-- Audio assets and art are placeholders in v1 (generated tones, primitives).
-- Real-device confirmation of button mapping and comfort is a manual
-  post-release check.
+Research = `docs/research/01-sentinel.md` Part B (BBC Micro source). "Align" =
+spec follows the research. "Departure" = deliberate, with reason.
+
+| # | Item | Research | Spec | Verdict |
+|---|---|---|---|---|
+| 1 | Grid | 31x31 tiles (32x32 corners) | 31x31 | Align (earlier draft was wrong) |
+| 2 | Altitudes | 1-11 | 1-11, 1 step = 1 m (original: step = tile width) | Align range; departure on scale: 11 m peaks keep eye-height comfortable, prototype scale |
+| 3 | Tile shapes / slopes | 16 shapes | flat columns only | Departure: prototype is columns; slopes are v2 |
+| 4 | Terrain generator | 40-bit LFSR, 11 steps, 10,000 landscapes | seeded smoothed noise, 10 levels | Departure: bit-exactness not needed for our own levels; the output ranges and smoothing rule match |
+| 5 | Trees | 10-32, cap 48 - 3 x enemies, below lowest enemy | 10..28 by level, same cap and placement | Align |
+| 6 | Enemy count | 1 for landscapes 0-9, then 1 + tens digit, max 8 | 1,1,2,2,3,3,4,4,5,6 | Departure: gentler ramp for a family game and 10 levels |
+| 7 | Enemy kinds | one Sentinel (4), up to 7 optional sentries (3) | all enemies are Sentinels worth 4, all must be absorbed | Departure: one counter and one goal; sentries/Meanies are v2 |
+| 8 | Enemy placement | highest 4x4 block, used block + 8 neighbours removed | same | Align |
+| 9 | Sentinel on a tower | yes | tile only | Departure: no towers in v1 |
+| 10 | Player start | flat empty, altitude <= min(6, lowest enemy) | same | Align (replaces earlier "height <= 1, 6 tiles away") |
+| 11 | Energy values | robot 3, tree 1, boulder 2, Sentinel 4, sentry 3 | synthoid 3, tree 1, Sentinel 4 | Align; boulders/sentries not in v1 |
+| 12 | Start / max energy | 10 / 63 | 10 / 63 | Align |
+| 13 | Total landscape energy | at most 49 | trees + 3 x enemies <= 48 tested; 49 not separately tested | Align by construction; meaning of 49 not fully established in the research |
+| 14 | Create cost = absorb yield | yes | yes | Align |
+| 15 | Object limit | 64 | 64 | Align |
+| 16 | Next level | landscape + remaining energy (cap 63) | level n+1; energy carried, min 10 | Departure: fixed 10-level progression; minimum 10 avoids dead ends |
+| 17 | Win | absorb the Sentinel, then hyperspace | absorb all Sentinels | Departure: no hyperspace in v1 |
+| 18 | Hyperspace (cost 3) | yes | none | Departure: v2 candidate |
+| 19 | Meanies | trees become Meanies when only your head is seen | none | Departure: v2 candidate; head-vs-tile sighting not implemented |
+| 20 | Turn step / interval | 28.125 deg every 11.94 s, direction fixed per enemy | same | Align |
+| 21 | Enemy view arc | 28.125 deg (yaw 20 units); sources unclear whether total or half | 56.25 deg total (28.125 each side) | Departure on interpretation: VR needs a readable cone; constant, tunable |
+| 22 | Drain delay / rate | 7.14 s then 1 per 1.74 s | same | Align |
+| 23 | Lose | drain while energy 0 | same | Align (earlier draft lost at 0) |
+| 24 | Enemy wake-up | idle until you spend/absorb energy | same | Align (new AC-18) |
+| 25 | First tactic delay | random 0.24-3.72 s per enemy | none | Departure: simplicity |
+| 26 | Enemy sight range | no limit found (open in research) | unlimited | Align with the open item |
+| 27 | Trees block sight | yes | yes, 3 m | Align |
+| 28 | Eye height | 0.875 tile (1.75 m at 2 m) | 1.6 m | Departure: prototype value |
+| 29 | Targetable | not own tile, not above eye, objects hit by ray | not own tile; visible tiles only | Align in effect; "above eye" is covered by line of sight |
+| 30 | Scoring, secret codes | none / 8-digit codes | none | Departure: no codes in v1 |
+| 31 | Locomotion | not in original | A moves into synthoid, snap turn | Departure: VR |
+| 32 | HUD | not in original (research suggests wrist gauge) | head-locked HUD (product requirement) | Departure |
+
+Other open items: audio and art are placeholders in v1; real-device
+confirmation of button mapping and comfort is a manual post-release check;
+terrain must be a merged mesh (AC-39) because 961 separate tile nodes would
+exceed the Quest draw-call budget.
 
 ## 14. Traceability (engineers fill in)
 
@@ -387,3 +441,4 @@ fill the test file and test function when the test is written.
 | AC-36 | | |
 | AC-37 | | |
 | AC-38 | | |
+| AC-39 | | |
