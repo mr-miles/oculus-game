@@ -7,7 +7,7 @@ func _init() -> void:
 	root.add_child(s)
 	for i in 5:
 		await process_frame
-	var ok: bool = s.markers.size() == 3 and s.origin.position.is_equal_approx(s.logic.top_position(Vector2i(1, 1)))
+	var ok: bool = s.markers.size() == 4 and s.origin.position.is_equal_approx(s.logic.top_position(s.logic.player_tile))
 	print("scene smoke: markers=%d origin=%s" % [s.markers.size(), s.origin.position])
 	print("SCENE PASS" if ok else "SCENE FAIL")
 	quit(0 if ok else 1)

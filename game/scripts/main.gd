@@ -3,7 +3,7 @@ extends Node3D
 ## tiles: trigger = create synthoid, A = transfer (teleport) into it,
 ## B = absorb tree/synthoid. Left-hand label shows energy.
 
-var logic := GameLogic.new()
+var logic := Levels.build(1)
 var origin: XROrigin3D
 var camera: XRCamera3D
 var right: XRController3D
@@ -84,8 +84,8 @@ func _build_world() -> void:
 	sun.rotation_degrees = Vector3(-50, 35, 0)
 	add_child(sun)
 
-	for z in GameLogic.SIZE:
-		for x in GameLogic.SIZE:
+	for z in logic.size:
+		for x in logic.size:
 			var t := Vector2i(x, z)
 			var h := logic.height(t)
 			var m := MeshInstance3D.new()
@@ -115,7 +115,7 @@ func _build_world() -> void:
 	nose.position = Vector3(0, 1.8, -0.5)
 	nose.material_override = _mat(Color(1, 0.9, 0.2))
 	sentinel.add_child(nose)
-	sentinel.position = logic.top_position(logic.sentinel_tile)
+	sentinel.position = logic.top_position(logic.sentinels[0].tile)
 	add_child(sentinel)
 
 	cursor = MeshInstance3D.new()
@@ -144,7 +144,7 @@ func _refresh() -> void:
 	for t in logic.trees.keys():
 		if not markers.has(t):
 			markers[t] = _make_marker(t, Color(0.1, 0.8, 0.2), 1.2)
-	hud.text = "Energy %d\n%s" % [logic.energy, "YOU WIN" if logic.won else "Trig:create A:go B:absorb"]
+	hud.text = "Energy %d\n%s" % [logic.energy, "YOU WIN" if logic.state == "won" else "Trig:create A:go B:absorb"]
 
 
 func _make_marker(t: Vector2i, c: Color, h: float) -> Node3D:
@@ -193,9 +193,9 @@ func _on_button(name: String) -> void:
 		return
 	match name:
 		"trigger_click":
-			logic.place_synthoid(t)
+			logic.create(t)
 		"ax_button":
-			if logic.transfer(t):
+			if logic.move(t) == "":
 				_place_player()
 		"by_button":
 			logic.absorb(t)
