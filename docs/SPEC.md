@@ -7,9 +7,8 @@ Scope fits two engineers: **A** = rules, levels, sentinels, tests
 (`game_logic.gd`, new `levels.gd`); **B** = VR view, lobby, HUD, input
 (`main.gd`, new `lobby.gd`, `hud.gd`).
 
-Source basis: the prototype and `docs/FINDINGS.md`. The board's research pack
-(drive a-1) was not readable when this was written; section 13 lists what to
-reconcile once it is.
+Source basis: the prototype and `docs/FINDINGS.md`. The separate research pack
+was not readable when this was written; section 13 lists what to reconcile.
 
 ## 1. Product in one paragraph
 
@@ -317,12 +316,12 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   stub counter in tests).
 - AC-37 (Build) `mise run test` runs all tests above and exits non-zero on
   any failure; `mise run build` still produces the verified arm64 APK.
-- AC-38 (Build) No colleague or board names appear anywhere in the repo
-  (grep gate in `tools/run-tests.sh`).
+- AC-38 (Build) No person names appear in game text, assets or docs (grep gate
+  against a names list kept outside the repo, run in CI).
 
 ## 13. Open items
 
-- Reconcile with the research pack (a-1) when readable; adjust constants, not
+- Reconcile with the research pack when readable; adjust constants, not
   structure.
 - Audio assets and art are placeholders in v1 (generated tones, primitives).
 - Real-device confirmation of button mapping and comfort is a manual
