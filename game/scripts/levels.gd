@@ -18,7 +18,7 @@ const MAX_ATTEMPTS := 100000  # random draws before placement gives up
 const SENTINELS := [1, 1, 2, 2, 3, 3, 4, 4, 5, 6]
 ## Landscape number per level (index 0 = level 1). The spec default is n - 1;
 ## entries may differ where that landscape fails a shape check (SPEC 4.1).
-const LANDSCAPE := [0, 1, 15, 10, 4, 5, 11, 17, 8, 9]
+const LANDSCAPE := [0, 1, 15, 10, 4, 5, 11, 17, 19, 9]
 const _LFSR_MASK := 0xFFFFFFFFFF  # 40 bits
 
 
@@ -218,17 +218,8 @@ static func _stretch_limit(src: Array) -> Array:
 
 
 static func _terrain(g: GameLogic, n: int) -> void:
-	## Tiles from the final corner grid: altitude = rounded mean of the four
-	## corners (half up); flat when all four are equal.
-	var c: Array = stages(n).final
-	for z in g.size:
-		for x in g.size:
-			var a: int = c[z][x]
-			var b: int = c[z][x + 1]
-			var d: int = c[z + 1][x]
-			var e: int = c[z + 1][x + 1]
-			g.heights[z][x] = (a + b + d + e + 2) / 4
-			g.flat[z][x] = a == b and b == d and d == e
+	## Tiles come from the final corner grid (the ground truth).
+	g.load_corners(stages(n).final)
 
 
 static func _place_sentinels(g: GameLogic, rng: RandomNumberGenerator, count: int) -> void:

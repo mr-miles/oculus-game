@@ -34,7 +34,7 @@ const MSG_OWN_TILE := "You are standing there"
 const MSG_NO_ENERGY := "Not enough energy: a body costs 3"
 const MSG_NO_ENERGY_BOULDER := "Not enough energy: a boulder costs 2"
 const MSG_BAD_KIND := "You can only make synthoids and boulders"
-const MSG_NOT_FLAT := "That tile is not flat"
+const MSG_NOT_FLAT := "Needs flat ground"
 const MSG_STACK_FULL := "That stack of boulders is full"
 const MSG_NOTHING := "Nothing to absorb there"
 const MSG_FULL := "The valley is full of objects"
@@ -50,11 +50,12 @@ const _INTERVAL_TICKS := 174
 
 var level := 1
 var size := 12
-var heights: Array = []  # heights[z][x]
+var heights: Array = []  # heights[z][x]: tile altitude (rounded mean of its corners)
+var corners: Array = []  # corners[z][x], (size + 1) squares of altitudes: the ground truth
 var synthoids := {}      # Vector2i -> true
 var trees := {}          # Vector2i -> true
 var boulders := {}       # Vector2i -> count (1..MAX_BOULDERS_PER_TILE) under any top object
-var flat: Array = []     # flat[z][x]: true if the tile's four corners are equal
+var flat: Array = []     # flat[z][x]: true if the tile's four corners are equal (derived)
 ## One Dictionary per Sentinel: tile (Vector2i), facing (degrees in [0, 360);
 ## direction on the ground is Vector2(sin, cos) in (x, z)), dir (+1 or -1, the
 ## fixed turn direction), turned (cumulative signed degrees turned), clock
@@ -82,6 +83,11 @@ func _init(grid_size := 12) -> void:
 		f.resize(size)
 		f.fill(true)
 		flat.append(f)
+	for z in size + 1:
+		var crow := []
+		crow.resize(size + 1)
+		crow.fill(0)
+		corners.append(crow)
 
 
 func in_bounds(t: Vector2i) -> bool:
@@ -96,18 +102,96 @@ func is_flat(t: Vector2i) -> bool:
 	return flat[t.y][t.x]
 
 
+func corner(cx: int, cz: int) -> int:
+	## Altitude of corner (cx, cz), both in 0..size.
+	return corners[cz][cx]
+
+
+func set_corner(cx: int, cz: int, altitude: int) -> void:
+	## Change one corner and refresh the (up to four) tiles that share it.
+	corners[cz][cx] = altitude
+	for t in [Vector2i(cx - 1, cz - 1), Vector2i(cx, cz - 1), Vector2i(cx - 1, cz), Vector2i(cx, cz)]:
+		if in_bounds(t):
+			_retile(t)
+
+
+func set_tile(t: Vector2i, altitude: int) -> void:
+	## Make tile t a flat column at `altitude` (its four corners).
+	for d in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
+		set_corner(t.x + d.x, t.y + d.y, altitude)
+
+
+func load_corners(grid: Array) -> void:
+	## Replace the whole corner grid (size + 1 rows of size + 1 altitudes).
+	for z in size + 1:
+		for x in size + 1:
+			corners[z][x] = grid[z][x]
+	for z in size:
+		for x in size:
+			_retile(Vector2i(x, z))
+
+
+func _retile(t: Vector2i) -> void:
+	var a: int = corners[t.y][t.x]
+	var b: int = corners[t.y][t.x + 1]
+	var c: int = corners[t.y + 1][t.x]
+	var d: int = corners[t.y + 1][t.x + 1]
+	heights[t.y][t.x] = (a + b + c + d + 2) / 4
+	flat[t.y][t.x] = a == b and a == c and a == d
+
+
+func tile_shape(t: Vector2i) -> String:
+	## "flat" (a = b = c = d), "slope" (a + d = b + c), "ridge" (a + d > b + c)
+	## or "valley" (a + d < b + c); a, b, c, d = corners (x, z), (x+1, z),
+	## (x, z+1), (x+1, z+1).
+	var a: int = corners[t.y][t.x]
+	var b: int = corners[t.y][t.x + 1]
+	var c: int = corners[t.y + 1][t.x]
+	var d: int = corners[t.y + 1][t.x + 1]
+	if a == b and a == c and a == d:
+		return "flat"
+	if a + d == b + c:
+		return "slope"
+	return "ridge" if a + d > b + c else "valley"
+
+
 func boulder_count(t: Vector2i) -> int:
 	return boulders.get(t, 0)
 
 
-func surface_height(t: Vector2i) -> float:
-	## Altitude plus half a metre per boulder on the tile.
+func stack_height(t: Vector2i) -> float:
+	## Tile altitude plus half a metre per boulder on it.
 	return float(height(t)) + BOULDER_HEIGHT * boulder_count(t)
 
 
+func surface_height(x_m: float, z_m: float) -> float:
+	## Height of the ground at a world point (metres): the corner grid
+	## interpolated over two triangles split on the a-d diagonal, plus the
+	## boulders on a flat tile. Outside the grid: 0.
+	var t := Vector2i(int(floor(x_m / TILE)), int(floor(z_m / TILE)))
+	if not in_bounds(t):
+		return 0.0
+	var u := x_m / TILE - t.x
+	var v := z_m / TILE - t.y
+	var a: float = corners[t.y][t.x]
+	var b: float = corners[t.y][t.x + 1]
+	var c: float = corners[t.y + 1][t.x]
+	var d: float = corners[t.y + 1][t.x + 1]
+	var h: float
+	if u >= v:
+		h = a + u * (b - a) + v * (d - b)
+	else:
+		h = a + v * (c - a) + u * (d - c)
+	if flat[t.y][t.x]:
+		h += BOULDER_HEIGHT * boulder_count(t)
+	return h
+
+
 func top_position(t: Vector2i) -> Vector3:
-	## World position of the centre of a tile's top (its surface, boulders included).
-	return Vector3((t.x + 0.5) * TILE, surface_height(t), (t.y + 0.5) * TILE)
+	## World position of the centre of a tile's surface (boulders included on a flat tile).
+	var x := (t.x + 0.5) * TILE
+	var z := (t.y + 0.5) * TILE
+	return Vector3(x, surface_height(x, z), z)
 
 
 func eye_position() -> Vector3:
@@ -155,23 +239,23 @@ func occupied(t: Vector2i) -> bool:
 func can_see(t: Vector2i) -> bool:
 	## A tile is visible if nothing blocks the line from the player's eye to its
 	## top centre. Terrain columns, boulders and trees block; synthoids do not.
-	if not in_bounds(t) or t == player_tile:
+	if not in_bounds(t) or t == player_tile or not is_flat(t):
 		return false
 	return _clear(eye_position(), top_position(t), player_tile, t)
 
 
 func _clear(from: Vector3, to: Vector3, skip_a: Vector2i, skip_b: Vector2i) -> bool:
-	## True if the segment from->to passes above every column and tree except
-	## those on the two skipped end tiles.
-	var steps := maxi(48, int(ceil(from.distance_to(to) / 0.5)))
-	var last := Vector2i(-1, -1)
+	## True if the segment from->to passes above the ground surface, boulders
+	## and trees, except over the two skipped end tiles. Sampled every 0.25 m
+	## horizontally.
+	var reach := Vector2(to.x - from.x, to.z - from.z).length()
+	var steps := maxi(48, int(ceil(reach / 0.25)))
 	for i in range(1, steps):
 		var p := from.lerp(to, float(i) / steps)
 		var c := Vector2i(int(floor(p.x / TILE)), int(floor(p.z / TILE)))
-		if c == last or c == skip_a or c == skip_b or not in_bounds(c):
+		if c == skip_a or c == skip_b or not in_bounds(c):
 			continue
-		last = c
-		var top := surface_height(c)
+		var top := surface_height(p.x, p.z)
 		if trees.has(c):
 			top += TREE_HEIGHT
 		if p.y < top:
@@ -224,8 +308,6 @@ func create(t: Vector2i, kind := "synthoid") -> String:
 		return MSG_OCCUPIED
 	if not own and not can_see(t):
 		return MSG_HIDDEN
-	if not is_flat(t):
-		return MSG_NOT_FLAT
 	if kind == "boulder" and boulder_count(t) >= MAX_BOULDERS_PER_TILE:
 		return MSG_STACK_FULL
 	if energy < (SYNTHOID_COST if kind == "synthoid" else BOULDER_COST):
@@ -357,4 +439,6 @@ func _blocked(t: Vector2i) -> String:
 		return MSG_OVER
 	if not in_bounds(t):
 		return MSG_OFF_GRID
+	if not is_flat(t):
+		return MSG_NOT_FLAT
 	return ""

@@ -79,7 +79,7 @@ func ac_3_create_fails() -> void:
 	var before := snapshot(g)
 	check("ac_3_create_fails low energy", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
 	g = flat()
-	g.heights[1][3] = 20
+	g.set_tile(Vector2i(3, 1), 20)
 	before = snapshot(g)
 	check("ac_3_create_fails hidden tile", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
 	g = flat()
@@ -93,7 +93,7 @@ func ac_3_create_fails() -> void:
 	before = snapshot(g)
 	check("ac_3_create_fails boulder low energy", g.create(Vector2i(6, 1), "boulder") != "" and snapshot(g) == before)
 	g = flat()
-	g.flat[1][6] = false
+	g.set_corner(6, 1, 2)
 	before = snapshot(g)
 	check("ac_3_create_fails not flat", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
 	g = flat()
@@ -121,7 +121,6 @@ func ac_4_absorb_energy() -> void:
 	g.synthoids[Vector2i(5, 1)] = true
 	check("ac_4_absorb_energy tree +1", g.absorb(Vector2i(4, 1)) == "" and g.energy == 11 and not g.trees.has(Vector2i(4, 1)))
 	check("ac_4_absorb_energy synthoid +3", g.absorb(Vector2i(5, 1)) == "" and g.energy == 14 and g.synthoids.is_empty())
-	g.heights[5][9] = 0
 	check("ac_4_absorb_energy sentinel +4", g.absorb(Vector2i(9, 5)) == "" and g.energy == 18 and g.sentinels.size() == 1)
 	g.boulders[Vector2i(4, 2)] = 2
 	check("ac_4_absorb_energy boulder +2", g.absorb(Vector2i(4, 2)) == "" and g.energy == 20 and g.boulder_count(Vector2i(4, 2)) == 1)
@@ -134,7 +133,7 @@ func ac_4_absorb_energy() -> void:
 func ac_5_absorb_fails() -> void:
 	var g := flat()
 	g.trees[Vector2i(6, 1)] = true
-	g.heights[1][3] = 20
+	g.set_tile(Vector2i(3, 1), 20)
 	var before := snapshot(g)
 	check("ac_5_absorb_fails hidden", g.absorb(Vector2i(6, 1)) != "" and snapshot(g) == before)
 	check("ac_5_absorb_fails empty tile", g.absorb(Vector2i(1, 6)) != "" and snapshot(g) == before)
@@ -145,7 +144,7 @@ func ac_6_line_of_sight() -> void:
 	var g := flat()
 	var far := Vector2i(6, 1)
 	check("ac_6_line_of_sight open", g.can_see(far))
-	g.heights[1][3] = 20
+	g.set_tile(Vector2i(3, 1), 20)
 	check("ac_6_line_of_sight column blocks", not g.can_see(far))
 	g = flat()
 	g.trees[Vector2i(3, 1)] = true
@@ -163,7 +162,7 @@ func ac_7_transfer() -> void:
 	check("ac_7_transfer consumes synthoid", not g.synthoids.has(t))
 	check("ac_7_transfer energy unchanged", g.energy == 10)
 	g.synthoids[Vector2i(1, 1)] = true
-	g.heights[1][3] = 20
+	g.set_tile(Vector2i(3, 1), 20)
 	var before := snapshot(g)
 	check("ac_7_transfer hidden fails", g.move(Vector2i(1, 1)) != "" and snapshot(g) == before)
 	check("ac_7_transfer nonexistent fails", g.move(Vector2i(8, 8)) != "" and snapshot(g) == before)
@@ -171,7 +170,7 @@ func ac_7_transfer() -> void:
 
 func ac_8_sentinel_turns() -> void:
 	var g := flat()
-	g.heights[1][4] = 40  # wall: the Sentinel never sees the player
+	g.set_tile(Vector2i(4, 1), 40)  # wall: the Sentinel never sees the player
 	var s := sentinel(g, Vector2i(8, 1), 90.0)
 	var start: float = s.facing
 	g.advance(11.9)
@@ -191,7 +190,7 @@ func ac_9_watched() -> void:
 	g.advance(0.01)
 	check("ac_9_watched outside cone", not g.watched)
 	g.sentinels[0].facing = 270.0
-	g.heights[1][4] = 20
+	g.set_tile(Vector2i(4, 1), 20)
 	g.advance(0.01)
 	check("ac_9_watched blocked by terrain", not g.watched)
 
@@ -355,7 +354,7 @@ func ac_44_create_boulder() -> void:
 	check("ac_44_create_boulder succeeds", g.create(t, "boulder") == "")
 	check("ac_44_create_boulder energy -2", g.energy == 8)
 	check("ac_44_create_boulder one boulder", g.boulder_count(t) == 1 and g.object_at(t) == "boulder")
-	check("ac_44_create_boulder surface +0.5 m", is_equal_approx(g.surface_height(t), 0.5) and is_equal_approx(g.top_position(t).y, 0.5))
+	check("ac_44_create_boulder surface +0.5 m", is_equal_approx(g.stack_height(t), 0.5) and is_equal_approx(g.top_position(t).y, 0.5))
 	check("ac_44_create_boulder tile still free", not g.occupied(t))
 	check("ac_44_create_boulder second boulder and synthoid on top", g.create(t, "boulder") == "" and g.create(t) == "" and g.object_at(t) == "synthoid")
 
@@ -555,3 +554,105 @@ func ac_59_deterministic() -> void:
 		seen.append(grid)
 	check("ac_59_deterministic two builds identical", same)
 	check("ac_59_deterministic levels pairwise different", distinct)
+
+
+## A single-tile grid with corners a, b, c, d (SPEC 4.2).
+func one_tile(a: int, b: int, c: int, d: int) -> GameLogic:
+	var g := GameLogic.new(1)
+	g.load_corners([[a, b], [c, d]])
+	return g
+
+
+func ac_60_tile_shapes() -> void:
+	var t := Vector2i(0, 0)
+	check("ac_60_tile_shapes flat", one_tile(3, 3, 3, 3).tile_shape(t) == "flat")
+	check("ac_60_tile_shapes slope", one_tile(3, 3, 5, 5).tile_shape(t) == "slope")
+	check("ac_60_tile_shapes ridge", one_tile(3, 3, 3, 5).tile_shape(t) == "ridge")
+	check("ac_60_tile_shapes valley", one_tile(3, 4, 4, 3).tile_shape(t) == "valley")
+	check("ac_60_tile_shapes height flat", one_tile(3, 3, 3, 3).height(t) == 3)
+	check("ac_60_tile_shapes height is rounded mean", one_tile(3, 3, 5, 5).height(t) == 4 and one_tile(3, 3, 3, 5).height(t) == 4)
+
+
+func ac_61_surface_height() -> void:
+	var corners_ok := true
+	for abcd in [[1, 3, 3, 5], [1, 1, 1, 5], [3, 5, 5, 3]]:
+		var g := one_tile(abcd[0], abcd[1], abcd[2], abcd[3])
+		corners_ok = corners_ok and is_equal_approx(g.surface_height(0.0, 0.0), abcd[0]) \
+				and is_equal_approx(g.surface_height(1.999999, 0.0), abcd[1]) \
+				and is_equal_approx(g.surface_height(0.0, 1.999999), abcd[2]) \
+				and is_equal_approx(g.surface_height(1.999999, 1.999999), abcd[3])
+	check("ac_61_surface_height equals corner altitude at corners", corners_ok)
+	check("ac_61_surface_height slope centre 3.0", is_equal_approx(one_tile(1, 3, 3, 5).surface_height(1.0, 1.0), 3.0))
+	var ridge := one_tile(1, 1, 1, 5)
+	check("ac_61_surface_height ridge centre 3.0 and 2.0", is_equal_approx(ridge.surface_height(1.0, 1.0), 3.0) and is_equal_approx(ridge.surface_height(1.5, 0.5), 2.0))
+	var valley := one_tile(3, 5, 5, 3)
+	check("ac_61_surface_height valley centre 3.0 and 4.0", is_equal_approx(valley.surface_height(1.0, 1.0), 3.0) and is_equal_approx(valley.surface_height(1.5, 0.5), 4.0))
+	var flat_tile := one_tile(4, 4, 4, 4)
+	check("ac_61_surface_height flat is its altitude everywhere", is_equal_approx(flat_tile.surface_height(0.3, 1.7), 4.0) and is_equal_approx(flat_tile.surface_height(1.1, 0.2), 4.0))
+
+
+func ac_62_slopes_in_levels() -> void:
+	var every_level := true
+	var seen := {}
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		var non_flat := 0
+		var has_slope := false
+		for z in g.size:
+			for x in g.size:
+				var shape := g.tile_shape(Vector2i(x, z))
+				seen[shape] = true
+				if shape != "flat":
+					non_flat += 1
+				has_slope = has_slope or shape == "slope"
+		var share := float(non_flat) / (g.size * g.size)
+		every_level = every_level and has_slope and share >= 0.2 and share <= 0.8
+	check("ac_62_slopes_in_levels slope tile in every level, non-flat share 20..80%", every_level)
+	check("ac_62_slopes_in_levels slope, ridge and valley all occur", seen.has("slope") and seen.has("ridge") and seen.has("valley"))
+
+
+func ac_63_objects_only_on_flat() -> void:
+	var placed_ok := true
+	var refused_ok := true
+	for n in range(1, 11):
+		var g := Levels.build(n)
+		for t in g.trees:
+			placed_ok = placed_ok and g.is_flat(t)
+		for s in g.sentinels:
+			placed_ok = placed_ok and g.is_flat(s.tile)
+		placed_ok = placed_ok and g.is_flat(g.player_tile)
+		g.energy = GameLogic.MAX_ENERGY
+		for z in g.size:
+			for x in g.size:
+				var t := Vector2i(x, z)
+				if g.is_flat(t):
+					continue
+				var before := snapshot(g)
+				for kind in ["synthoid", "boulder"]:
+					var why := g.create(t, kind)
+					refused_ok = refused_ok and why.to_lower().contains("flat") and snapshot(g) == before
+		for t in g.synthoids:
+			placed_ok = placed_ok and g.is_flat(t)
+		for t in g.boulders:
+			placed_ok = placed_ok and g.is_flat(t)
+	check("ac_63_objects_only_on_flat generated objects on flat tiles", placed_ok)
+	check("ac_63_objects_only_on_flat create on a non-flat tile refused with 'flat'", refused_ok)
+
+
+func ac_64_sight_over_slopes() -> void:
+	var results := []
+	for apex in [5, 4, 3.5, 1]:
+		var g := GameLogic.new(4)
+		var grid := []
+		for z in 5:
+			var row := []
+			for x in 5:
+				row.append(3)
+			grid.append(row)
+		for z in 5:
+			grid[z][2] = apex
+		g.load_corners(grid)
+		g.player_tile = Vector2i(0, 1)
+		results.append(g.can_see(Vector2i(3, 1)))
+	check("ac_64_sight_over_slopes blocked at apex 5 and 4", not results[0] and not results[1])
+	check("ac_64_sight_over_slopes visible at apex 3.5 and 1", results[2] and results[3])
