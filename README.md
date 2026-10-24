@@ -15,8 +15,10 @@ with four pages (Story, Rules, How to play with a controller sketch, Ready).
 Point the right controller at **Back**, **Next** or **Start** and pull the
 trigger. **Start** is on every page and loads level 1.
 
-**World.** A level is a 31 x 31 grid of square stone-green columns (2 m wide,
-altitude 1-11 m) under a blue sky. Red **Sentinels** (tall, with a yellow nose
+**World.** A level is a 31 x 31 grid of square stone-green tiles (2 m wide,
+altitude 1-11 m) with real slopes, ridges and valleys, under a blue sky. Only
+**flat** tiles (darker-brown tiles are sloped) can hold trees, Sentinels,
+the player and anything you create. Red **Sentinels** (tall, with a yellow nose
 that shows where they look) stand on the highest ground; green **trees** (3 m
 tall) are scattered about. There are ten levels; rules and level generation are
 in `docs/SPEC.md` (sections 3-4).

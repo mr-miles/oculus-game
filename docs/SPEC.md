@@ -15,7 +15,7 @@ original it says so (section 13).
 ## 1. Product in one paragraph
 
 A calm, puzzle-like, non-violent VR game for ages 8+. You are a small "spark"
-that lives in robot bodies called synthoids. On a landscape of stone columns,
+that lives in robot bodies called synthoids. On a landscape of rolling stone hills,
 watchful Sentinels guard the high ground. You climb by creating synthoids on
 tiles you can see and moving into them, absorbing trees and synthoids for
 energy, until you have absorbed every Sentinel on the level. Nothing is hurt;
@@ -37,9 +37,12 @@ scares. Text is short, large, and readable by an 8-year-old.
 
 ## 3. Rules
 
-Grid of 31x31 square tiles (edge 2 m, as in the original), each a flat-topped column of altitude 1 to 11 (1 altitude step = 1 m). Objects stand only on tiles. Terms:
+Grid of 31x31 square tiles (edge 2 m, as in the original), whose four corners each have an altitude 1 to 11 (1 altitude step = 1 m), so
+hills have real slopes (section 4.2). A tile is **flat** when its four corners are
+equal; objects (trees, Sentinels, synthoids, boulders) and the player stand only
+on flat tiles. Terms:
 
-- **Visible**: no terrain column or tree blocks the straight line from your eye
+- **Visible**: no terrain surface (including slopes), boulder or tree blocks the straight line from your eye
   (tile top + 1.6 m) to the tile's top centre (prototype `can_see`, extended:
   a tree blocks the line below its top, 3 m above its tile, as in the original).
   Synthoids do not block sight. Your own tile is never targetable.
@@ -145,12 +148,78 @@ is deterministic and exposed for tests as `Levels.stages(n)` (AC-54).
 11. **Tiles**: a tile is **flat** when its four corners are equal (only flat
     tiles can hold trees, Sentinels, the player and any created object, as in
     the original). Tile altitude = round-half-up of the mean of its four
-    corners; the view draws tiles as columns of that altitude. Then place
+    corners (used for naming and statistics; the visible ground is the
+    sloped surface of section 4.2). Then place
     Sentinels, trees and the player start (below).
 
-Differences from the original: tile slopes are drawn as steps (columns);
-step 10's stretch/limit is ours; the spike repair details are ours (the
+Differences from the original: the exact tile-shape numbering is ours (section
+4.2); step 10's stretch/limit is ours; the spike repair details are ours (the
 research only says "spike/trough smoothing twice").
+
+### 4.2 Tile shapes and slopes
+
+The generator's corner grid `corner(x, z)` (32x32 ints, 1-11) is the ground
+truth; `GameLogic` keeps it and every query below reads it. For tile (x, z)
+name its corners a = (x, z), b = (x+1, z), c = (x, z+1), d = (x+1, z+1)
+(z grows away from the viewer; a is the front-left corner, as in the
+original). `tile_shape(t)` returns one of four classes:
+
+| Class | Corner rule | Looks like |
+|---|---|---|
+| `flat` | a = b = c = d | level ground; the only class that can hold objects |
+| `slope` | not flat, and a + d = b + c | one tilted plane (a ramp, up to 3 m rise over a tile edge) |
+| `ridge` | a + d > b + c | a roof: the fold runs along the a-d diagonal and is the highest line |
+| `valley` | a + d < b + c | a trough: the fold runs along the a-d diagonal and is the lowest line |
+
+The original has 16 numbered shape codes (research: 0-15, no 8, 0 = flat).
+The research does not give the encoding, so this spec keeps its idea (a tile
+shape follows from the four corner altitudes, 0 = flat, only flat tiles hold
+objects) with the four classes above instead of the numbered codes.
+`height(t)` stays the spec 3 value: the common altitude for a flat tile, the
+round-half-up mean of the corners otherwise (used only for statistics and
+the grey aim disc).
+
+**Surface height** at a point inside tile (x, z), with u and v in [0, 1] the
+fraction across the tile along x and z. The tile is split into two triangles
+along the a-d diagonal:
+
+- if u >= v: h = a + u (b - a) + v (d - b)
+- otherwise: h = a + v (c - a) + u (d - c)
+
+So the fold of a ridge or valley is always on the a-d diagonal, a flat tile
+has h = its altitude everywhere, and a tile corner's surface height is the
+corner altitude. Boulders add 0.5 m each on flat tiles only.
+
+**Eye height.** The player stands only on flat tiles, so the eye is always
+flat altitude + 0.5 m per boulder + 1.6 m (spec 3); slopes never change it
+and there is no walking onto a slope. A transfer into a synthoid never lands on
+a slope because synthoids are only created on flat tiles.
+
+**Line of sight.** The ray from the eye to the target tile's top centre
+(flat target tiles only) is sampled every 0.25 m (or finer) horizontally; it is
+blocked wherever the ray is below the surface height there (or below a tree
+top, boulder stack or any terrain of other tiles). The cells of the
+player's own tile and the target tile are skipped, as before. Slopes therefore
+hide what is behind a ridge, and a valley lets you see across it.
+
+**Aim and what can be targeted.** The aimed tile is the first tile where the
+aim ray goes at or below the surface height (not a column top). Any tile can
+be aimed at, flat or not. Flat and visible: yellow disc; flat and hidden: red
+disc; not flat: **grey** disc at the tile centre's surface height, and every
+action on it fails with the message "Needs flat ground". Create, transfer and
+absorb apply to flat tiles only (a sloped tile never has an object).
+
+**Placement.** Trees, Sentinels, the player start and any object the player
+creates are on flat tiles only (spec 3 already says this for the generator;
+this adds the rule for the player's actions and for the final check in AC-63).
+
+**Rendering.** One merged heightfield mesh (so AC-39 still holds, <= 16 mesh
+instances): per tile two triangles split along a-d (the triangles above),
+flat-shaded normals, vertex colours: flat tiles the two stone-green checker
+colours of the prototype, non-flat tiles a distinct darker brown-green (so
+players see where objects can go), and a vertical skirt down to y = 0 around
+the 31x31 border so the edge has no see-through gaps. Aim disc, Sentinels,
+trees and boulders are unchanged. No physics colliders are needed.
 
 | Level | Sentinels | Trees | Starting energy |
 |---|---|---|---|
@@ -343,8 +412,8 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-4 (Logic) Absorbing a tree gives +1, a synthoid +3, a boulder +2, a
   Sentinel +4; each removes the object; energy is capped at 63.
 - AC-5 (Logic) Absorb fails on a hidden target, an empty tile, or one's own tile.
-- AC-6 (Logic) A tall column on the line of sight makes a tile not visible; so
-  does a tree (3 m) in the way; a synthoid does not.
+- AC-6 (Logic) Terrain on the line of sight (flat or sloped, by surface height,
+  section 4.2) makes a tile not visible; so does a tree (3 m) in the way; a synthoid does not.
 - AC-7 (Logic) Transfer onto a visible synthoid sets the player tile, consumes
   the synthoid and leaves energy unchanged; transfer onto a hidden or
   nonexistent synthoid fails.
@@ -438,8 +507,8 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   stub counter in tests).
 - AC-37 (Build) `mise run test` runs all tests above and exits non-zero on
   any failure; `mise run build` still produces the verified arm64 APK.
-- AC-39 (Scene) The 31x31 terrain is built from at most 16 mesh instances
-  (merged mesh, not one node per tile), so the scene stays Quest-friendly;
+- AC-39 (Scene) The 31x31 terrain (a merged heightfield mesh, section 4.2) is built
+  from at most 16 mesh instances (not one node per tile), so the scene stays Quest-friendly;
   the existing scene smoke test still passes.
 - AC-38 (Build) No person names appear in game text, assets or docs (grep gate
   against a names list kept outside the repo, run in CI).
@@ -519,9 +588,58 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-59 (Logic) The LFSR and `Levels.build` are deterministic: two builds are
   identical, and levels 1..10 have pairwise different altitude grids.
 
+*Tile slopes (spec 4)*
+
+Spec 3 ACs changed by this section: **AC-6** (wording: terrain surface, not
+column), **AC-39** (mesh is a heightfield). Unchanged and still valid: AC-12,
+AC-13, AC-17, AC-45, AC-53, AC-55 to AC-58 (they use flat altitudes and corner
+steps). AC-57 now also guarantees that sloped tiles exist.
+
+- AC-60 (Logic) `tile_shape(t)` on hand-built corner grids (a, b, c, d as in
+  section 4.2) returns `flat` for 3,3,3,3; `slope` for 3,3,5,5 (a + d = b + c);
+  `ridge` for 3,3,3,5 (a + d = 8 > b + c = 6); `valley` for 3,4,4,3
+  (a + d = 6 < 8). `height(t)` is the common altitude for flat tiles and the
+  round-half-up mean of the corners otherwise.
+- AC-61 (Logic) `surface_height(x_m, z_m)` returns the corner altitude at every
+  corner. With a, b, c, d = 1, 3, 3, 5 (slope) the tile centre is 3.0; with
+  1, 1, 1, 5 (ridge) the centre is 3.0 and (u, v) = (0.75, 0.25) gives 2.0; with
+  3, 5, 5, 3 (valley) the centre is 3.0 and (0.75, 0.25) gives 4.0; a flat tile
+  returns its altitude everywhere.
+- AC-62 (Logic) Every level n = 1..10 contains at least one `slope` tile, and
+  over the 10 levels `slope`, `ridge` and `valley` each occur at least once;
+  in every level the share of non-flat tiles is between 20% and 80%.
+- AC-63 (Logic) For all 10 levels every tree, every Sentinel and the player
+  start are on `flat` tiles; and attempting `create` (synthoid and boulder, with
+  ample energy) on every non-flat visible tile is refused with a reason
+  containing "flat" and changes nothing; at the end no object stands on a non-flat tile.
+- AC-64 (Logic) Sight over slopes. One row of four tiles along x (each 2 m): A and
+  B flat at altitude 3, two middle tiles between them whose only varying
+  corner column is the one at x = 4 m (altitude `apex`; the others are 3), eye on
+  A at 3 + 1.6, target B. The sight line is 3.8 m high at x = 4 m. B is not
+  visible for apex = 5 and for apex = 4; B is visible for apex = 3.5 and for
+  apex = 1 (a valley).
+- AC-65 (Scene) Aim on a slope with a real controller pose (no `aim_at`): a
+  right-hand ray pointing at the centre of a sloped tile makes it the aimed
+  tile; the disc is grey; `press("trigger_click")`, `press("ax_button")` and
+  `press("by_button")` change nothing and set `HudMessage` containing "Needs
+  flat ground". A ray at a flat visible tile shows a yellow disc, at a hidden
+  one a red disc.
+- AC-66 (Scene) Terrain mesh geometry: for every tile the four mesh vertices at
+  its corners have x, z = corner index x 2 m and y = the corner altitude (1 mm),
+  the two triangles are split along the a-d diagonal, and the border has a
+  vertical skirt down to y = 0 (no boundary edge without a wall).
+- AC-67 (Scene) Terrain vertex colours: all vertices of a flat tile use one of
+  the two flat colours; all vertices of a non-flat tile use the slope colour;
+  the three colours are mutually different.
+- AC-68 (Scene) After a transfer onto a flat tile next to sloped tiles,
+  `XROrigin3D` y equals the flat altitude (+ 0.5 per boulder) exactly (1 cm),
+  never an interpolated slope value, and `XRCamera3D` y is that + 1.6.
+- AC-69 (Build) `README.md` World paragraph mentions "slopes" or "sloping" and
+  "flat" (grep gate in `tools/check-test-gate.sh`), and no longer says "columns".
+
 Known simplification (kept from the prototype): visibility tests only whether
-terrain or a tree blocks the line to a tile's top centre; the column of the
-target tile itself never blocks. A Sentinel standing higher than the player is
+terrain or a tree blocks the line to a tile's top centre; the target tile's
+own surface never blocks. A Sentinel standing higher than the player is
 therefore visible and absorbable from a lower tile if nothing is in the way.
 The original needs the tile's top face in view, which forces more climbing.
 
@@ -534,7 +652,7 @@ spec follows the research. "Departure" = deliberate, with reason.
 |---|---|---|---|---|
 | 1 | Grid | 31x31 tiles (32x32 corners) | 31x31 | Align (earlier draft was wrong) |
 | 2 | Altitudes | 1-11 | 1-11, 1 step = 1 m (original: step = tile width) | Align range; departure on scale: 11 m peaks keep eye-height comfortable, prototype scale |
-| 3 | Tile shapes / slopes | 16 shapes | corners define flat/not flat (as original); drawn as columns, no sloped faces | Align on flatness; departure on drawing: columns, slopes are v2 |
+| 3 | Tile shapes / slopes | 16 shape codes (0-15, no 8), 0 = flat, from the 4 corner altitudes; objects on flat tiles only | tiles are triangulated from the 4 corners; classes flat, slope, ridge, valley; objects, player, Sentinels and trees on flat only (section 4.2) | Align on idea and on flat-only placement; departure: four classes instead of the original's numeric codes, because the research does not give the encoding |
 | 4 | Terrain generator | 40-bit LFSR, 11 steps, 10,000 landscapes | same LFSR and step structure (section 4.1), 10 levels | Align on structure; departures: the spike repair and the stretch/limit step are ours (research gives no detail), only 10 landscapes; earlier "simplified noise" departure removed |
 | 5 | Trees | 10-32, cap 48 - 3 x enemies, below lowest enemy | 10..28 by level, same cap and placement | Align |
 | 6 | Enemy count | 1 for landscapes 0-9, then 1 + tens digit, max 8 | 1,1,2,2,3,3,4,4,5,6 | Departure: gentler ramp for a family game and 10 levels |
@@ -628,19 +746,29 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-41 | | |
 | AC-42 | | |
 | AC-43 | | |
-| AC-44 | `test_ac_logic.gd` | `ac_44_create_boulder` |
+| AC-44 | | |
 | AC-45 | | |
-| AC-46 | `test_ac_logic.gd` | `ac_46_trees_not_creatable` |
-| AC-47 | `test_ac_logic.gd` | `ac_47_stacks` |
-| AC-48 | `test_ac_logic.gd` | `ac_48_absorb_top_only` |
-| AC-49 | `test_ac_logic.gd` | `ac_49_boulders_block_sight` |
-| AC-50 | `test_ac_logic.gd` | `ac_50_energy_math` |
+| AC-46 | | |
+| AC-47 | | |
+| AC-48 | | |
+| AC-49 | | |
+| AC-50 | | |
 | AC-51 | | |
 | AC-52 | | |
 | AC-53 | | |
-| AC-54 | `test_ac_logic.gd` | `ac_54_generator_stages` |
-| AC-55 | `test_ac_logic.gd` | `ac_55_no_pits_or_spikes` |
-| AC-56 | `test_ac_logic.gd` | `ac_56_smooth_not_noise` |
-| AC-57 | `test_ac_logic.gd` | `ac_57_flat_share` |
-| AC-58 | `test_ac_logic.gd` | `ac_58_sentinels_on_peaks` |
-| AC-59 | `test_ac_logic.gd` | `ac_59_deterministic` |
+| AC-54 | | |
+| AC-55 | | |
+| AC-56 | | |
+| AC-57 | | |
+| AC-58 | | |
+| AC-59 | | |
+| AC-60 | | |
+| AC-61 | | |
+| AC-62 | | |
+| AC-63 | | |
+| AC-64 | | |
+| AC-65 | | |
+| AC-66 | | |
+| AC-67 | | |
+| AC-68 | | |
+| AC-69 | | |
