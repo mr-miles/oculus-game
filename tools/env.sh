@@ -7,8 +7,9 @@ export GODOT_TEMPLATE_DIR=4.7.2.stable
 export BUILD_TOOLS_VERSION=35.0.1
 : "${ANDROID_HOME:?run through mise: mise run setup / build}"
 : "${TOOLCHAIN_DIR:?run through mise}"
-GODOT="$(command -v godot || true)"; export GODOT
-[ -n "$GODOT" ] || { echo "godot not on PATH: run 'mise install'"; return 1 2>/dev/null || exit 1; }
+# `mise which` also works in the same run that installed the tools (PATH was computed before).
+GODOT="$(mise which godot 2>/dev/null || true)"; export GODOT
+[ -n "$GODOT" ] || { echo "godot not found: run 'mise install'"; return 1 2>/dev/null || exit 1; }
 JAVA_HOME="$(mise where java)"; export JAVA_HOME
 CMDLINE_TOOLS_DIR="$(mise where http:android-cmdline-tools)"; export CMDLINE_TOOLS_DIR
 VENDORS_DIR="$(mise where http:godot-openxr-vendors)"; export VENDORS_DIR
