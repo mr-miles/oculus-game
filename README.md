@@ -20,22 +20,25 @@ altitude 1-11 m) with real slopes, ridges and valleys, under a blue sky. Only
 **flat** tiles (darker-brown tiles are sloped) can hold trees, Sentinels,
 the player and anything you create. Red **Sentinels** (tall, with a yellow nose
 that shows where they look) stand on the highest ground; green **trees** (3 m
-tall) are scattered about. There are ten levels; rules and level generation are
+tall: a 1.2 m trunk under a 1.8 m leafy canopy) are scattered about. There are ten levels; rules and level generation are
 in `docs/SPEC.md` (sections 3-4).
 
-**HUD.** A head-locked panel 1.2 m in front of you, slightly below the centre of
-gaze: **Energy** (number and bar), **Level n of 10**, **Sentinels: k of N
-left**, a red border and countdown while a Sentinel is watching you, and a
-one-line message that explains every failed action.
+**HUD.** A head-locked panel 1.2 m in front of you, above the centre of
+gaze so it never covers the ground you are looking at: **Energy** (number and
+bar), **Level n of 10**, **Sentinels: k of N left**, the create mode
+(**Create: Synthoid (3)** or **Create: Boulder (2)**), a red border and
+countdown while a Sentinel is watching you, and a one-line message that
+explains every failed action.
 
 **Controls.**
 
 | Input | Action |
 |---|---|
-| Right ray | Yellow disc = you can see that tile, red = hidden |
-| Right trigger | Create a synthoid (blue body) on the aimed tile (3 energy); after a loss, try the level again |
+| Right ray | Yellow disc = flat tile you can see, red = flat but hidden, grey = sloped ("Needs flat ground") |
+| Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 0.5 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
+| Right grip | Switch the create mode Synthoid <-> Boulder (shown on the HUD; a translucent ghost shows what you will make) |
 | Right A | Move into the aimed synthoid (0.2 s fade) |
-| Right B | Absorb the aimed tree (+1), synthoid (+3) or Sentinel (+4) |
+| Right B | Absorb the top object of the aimed tile: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4) |
 | Left stick left/right | Snap turn 30 degrees |
 | Left Y | Pause menu: Resume / Restart level / Back to lobby |
 | Left X | Hint for the current situation |
