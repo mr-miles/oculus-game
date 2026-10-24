@@ -340,3 +340,49 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - Audio assets and art are placeholders in v1 (generated tones, primitives).
 - Real-device confirmation of button mapping and comfort is a manual
   post-release check.
+
+## 14. AC -> test traceability
+
+Logic tests are in `game/tests/test_ac_logic.gd` (one `ac_N_...` function each).
+Scene tests: to be filled in with the scene test files.
+
+| AC | Test | File |
+|---|---|---|
+| AC-1 | `ac_1_new_game` | `game/tests/test_ac_logic.gd` |
+| AC-2 | `ac_2_create_costs_three` | `game/tests/test_ac_logic.gd` |
+| AC-3 | `ac_3_create_fails` | `game/tests/test_ac_logic.gd` |
+| AC-4 | `ac_4_absorb_energy` | `game/tests/test_ac_logic.gd` |
+| AC-5 | `ac_5_absorb_fails` | `game/tests/test_ac_logic.gd` |
+| AC-6 | `ac_6_line_of_sight` | `game/tests/test_ac_logic.gd` |
+| AC-7 | `ac_7_transfer` | `game/tests/test_ac_logic.gd` |
+| AC-8 | `ac_8_sentinel_turns` | `game/tests/test_ac_logic.gd` |
+| AC-9 | `ac_9_watched` | `game/tests/test_ac_logic.gd` |
+| AC-10 | `ac_10_drain_timing` | `game/tests/test_ac_logic.gd` |
+| AC-11 | `ac_11_win_lose` | `game/tests/test_ac_logic.gd` |
+| AC-12 | _pending_ | |
+| AC-13 | _pending_ | |
+| AC-14 | _pending_ | |
+| AC-15 | _pending_ | |
+| AC-16 | `ac_16_levels_match_table` | `game/tests/test_ac_logic.gd` |
+| AC-17 | `ac_17_level_constraints` | `game/tests/test_ac_logic.gd` |
+| AC-18 | `ac_18_not_watched_at_start` | `game/tests/test_ac_logic.gd` |
+| AC-19 | `ac_19_solver_bot_clears_all` | `game/tests/test_ac_logic.gd` |
+| AC-20 | `ac_20_energy_carry_and_retry` | `game/tests/test_ac_logic.gd` |
+| AC-21 | _pending_ | |
+| AC-22 | _pending_ | |
+| AC-23 | _pending_ | |
+| AC-24 | _pending_ | |
+| AC-25 | _pending_ | |
+| AC-26 | _pending_ | |
+| AC-27 | _pending_ | |
+| AC-28 | _pending_ | |
+| AC-29 | _pending_ | |
+| AC-30 | _pending_ | |
+| AC-31 | _pending_ | |
+| AC-32 | _pending_ | |
+| AC-33 | _pending_ | |
+| AC-34 | _pending_ | |
+| AC-35 | _pending_ | |
+| AC-36 | _pending_ | |
+| AC-37 | _pending_ | |
+| AC-38 | _pending_ | |

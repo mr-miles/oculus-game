@@ -85,7 +85,7 @@ git checkout rosa/quest-sentinel-mise
 mise trust
 mise run setup                         # installs pinned tools, SDK, templates (~3 min)
 mise run build                         # tests, export, verify -> game/build/quest-sentinel.apk (~5 min)
-mise run test                          # tests only
+mise run test                          # all headless tests (rules ACs, scene tests)
 mise run verify                        # re-check an existing APK
 ```
 
