@@ -97,4 +97,4 @@ func show_state(logic: GameLogic, sentinels_total: int, message: String) -> void
 	watched_label.visible = watched
 	_border.visible = watched
 	if watched:
-		watched_label.text = "A Sentinel sees you! Energy drops in %.1f s" % maxf(logic.drain_countdown, 0.0)
+		watched_label.text = "A Sentinel sees you! Energy drops in %.1f s" % maxf(logic.drain_countdown(), 0.0)

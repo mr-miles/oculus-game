@@ -3,6 +3,8 @@ extends ViewTest
 
 func _init() -> void:
 	var g := await new_game()
+	g.aim_at(free_visible_tile(g))
+	g.press("trigger_click")  # Sentinels stay idle until the first action
 	for step in 3:
 		g.advance(12.0)
 		for s in g.logic.sentinels:

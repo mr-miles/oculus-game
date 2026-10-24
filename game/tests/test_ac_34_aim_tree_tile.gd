@@ -2,7 +2,9 @@ extends ViewTest
 ## AC-34: the ray selects the tile when it passes over a tree (or synthoid) on it.
 
 func _ray_from(g: Node, from: Vector3, toward: Vector3) -> Vector2i:
-	g.rig.right.global_transform = Transform3D(Basis.looking_at((toward - from).normalized(), Vector3.UP), from)
+	var dir := (toward - from).normalized()
+	var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT
+	g.rig.right.global_transform = Transform3D(Basis.looking_at(dir, up), from)
 	return g.aimed_tile()
 
 

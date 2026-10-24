@@ -11,10 +11,8 @@ const SYNTHOID_HEIGHT := 1.6
 const SENTINEL_HEIGHT := 3.0
 const FADE_SECONDS := 0.2
 const CLEARED_SECONDS := 3.0
-const RAY_REACH := 40.0
-const RAY_STEP := 0.15
-const MSG_NO_MOVE := "Aim at a blue synthoid you can see"
-const MSG_NO_TILE := "Aim at a tile you can see"
+const RAY_REACH := 90.0
+const RAY_STEP := 0.2
 const MSG_LOST := "You ran out of energy. Pull the trigger to try again."
 const COLOR_SYNTHOID := Color(0.2, 0.4, 1.0)
 const COLOR_TREE := Color(0.1, 0.8, 0.2)
@@ -137,16 +135,9 @@ func _build_world() -> void:
 	add_child(_world)
 	_markers.clear()
 	_sentinels.clear()
-	for z in logic.size:
-		for x in logic.size:
-			var t := Vector2i(x, z)
-			var h := logic.height(t)
-			var col_h := float(h) + 1.0  # column reaches below the floor
-			var box := BoxMesh.new()
-			box.size = Vector3(GameLogic.TILE, col_h, GameLogic.TILE)
-			var shade := Color(0.25, 0.55, 0.3) if (x + z) % 2 == 0 else Color(0.2, 0.45, 0.25)
-			_world.add_child(Scenery.mesh_node("Tile_%d_%d" % [x, z], box, shade,
-					Vector3((x + 0.5) * GameLogic.TILE, h - col_h / 2.0, (z + 0.5) * GameLogic.TILE)))
+	var terrain := Terrain.new()
+	_world.add_child(terrain)
+	terrain.build(logic)
 
 
 func _sync_objects() -> void:
@@ -267,7 +258,7 @@ func _dispatch(button: String) -> void:
 			var reason := _check_tile(logic.move)
 			if reason == "":
 				_start_move()
-			_finish("move", MSG_NO_MOVE if reason != "" else "")
+			_finish("move", reason)
 		"by_button":
 			_finish("absorb", _check_tile(logic.absorb))
 		"ax_left_button":
@@ -303,7 +294,7 @@ func _check_tile(action: Callable) -> String:
 	## Run a tile action on the aimed tile; "" on success, else the HUD reason.
 	var t := aimed_tile()
 	if not logic.in_bounds(t):
-		return MSG_NO_TILE
+		return GameLogic.MSG_OFF_GRID
 	return action.call(t)
 
 

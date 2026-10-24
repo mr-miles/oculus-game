@@ -8,7 +8,7 @@ func _init() -> void:
 	g.refresh()
 	check("ac_31 hidden when not watched", not w.is_visible_in_tree())
 	g.logic.watched = true
-	g.logic.drain_countdown = 4.0
+	g.logic.watch_ticks = 314  # 4.0 s left before the first drain
 	g.refresh()
 	check("ac_31 visible when watched", w.is_visible_in_tree())
 	check("ac_31 shows the countdown", w.text.contains("4"))
