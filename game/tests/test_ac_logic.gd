@@ -30,6 +30,7 @@ func flat() -> GameLogic:
 func sentinel(g: GameLogic, tile: Vector2i, facing: float, dir := 1) -> Dictionary:
 	var s := {"tile": tile, "facing": facing, "dir": dir, "turned": 0.0, "clock": 0, "sees": false}
 	g.sentinels.append(s)
+	g.awake = true
 	return s
 
 
@@ -49,7 +50,10 @@ func ac_1_new_game() -> void:
 	var g := Levels.build(1)
 	check("ac_1_new_game energy 10", g.energy == 10)
 	check("ac_1_new_game one sentinel", g.sentinels.size() == 1)
-	check("ac_1_new_game player on low tile", g.height(g.player_tile) <= 1)
+	check("ac_1_new_game 31x31", g.size == 31 and g.heights.size() == 31 and g.heights[0].size() == 31)
+	var h := g.height(g.player_tile)
+	check("ac_1_new_game player start altitude", h <= mini(6, Levels.lowest_sentinel_altitude(g)))
+	check("ac_1_new_game player tile empty", g.object_at(g.player_tile) == "")
 
 
 func ac_2_create_costs_three() -> void:
@@ -75,6 +79,12 @@ func ac_3_create_fails() -> void:
 	check("ac_3_create_fails occupied tile", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
 	before = snapshot(g)
 	check("ac_3_create_fails own tile", g.create(g.player_tile) != "" and snapshot(g) == before)
+	g = flat()
+	for i in 63:
+		g.trees[Vector2i(i % 12, 4 + i / 12)] = true
+	check("ac_3_create_fails 64 objects counted", g.object_count() == 64)
+	before = snapshot(g)
+	check("ac_3_create_fails 64 objects", g.create(Vector2i(6, 1)) != "" and snapshot(g) == before)
 
 
 func ac_4_absorb_energy() -> void:
@@ -181,10 +191,12 @@ func ac_10_drain_timing() -> void:
 func ac_11_win_lose() -> void:
 	var g := watched_scene()
 	g.energy = 1
-	g.advance(7.13)
-	check("ac_11_win_lose not lost early", g.state == "playing")
+	g.advance(7.14)
+	check("ac_11_win_lose energy 0 is not a loss", g.energy == 0 and g.state == "playing")
+	g.advance(1.73)
+	check("ac_11_win_lose not lost before next drain", g.state == "playing")
 	g.advance(0.01)
-	check("ac_11_win_lose lost at energy 0", g.state == "lost" and g.energy == 0)
+	check("ac_11_win_lose lost on drain at energy 0", g.state == "lost")
 	g = flat()
 	sentinel(g, Vector2i(8, 1), 0.0)
 	sentinel(g, Vector2i(8, 5), 0.0)
@@ -204,54 +216,80 @@ func signature(g: GameLogic) -> String:
 
 
 func ac_16_levels_match_table() -> void:
-	var rows := [
-		[12, 1, 4], [12, 1, 5], [14, 2, 6], [14, 2, 7], [16, 3, 8],
-		[16, 3, 9], [18, 4, 10], [18, 4, 11], [20, 5, 12], [20, 6, 14],
-	]
+	var sentinels := [1, 1, 2, 2, 3, 3, 4, 4, 5, 6]
+	var trees := [10, 12, 14, 16, 18, 20, 22, 24, 26, 28]
 	var ok := true
 	var same := true
+	var in_range := true
 	for n in range(1, 11):
 		var g := Levels.build(n)
-		var r: Array = rows[n - 1]
-		ok = ok and g.size == r[0] and g.sentinels.size() == r[1] and g.trees.size() == r[2] and g.energy == 10 and g.level == n
+		ok = ok and g.size == 31 and g.sentinels.size() == sentinels[n - 1] and g.trees.size() == trees[n - 1] and g.energy == 10 and g.level == n
 		same = same and signature(g) == signature(Levels.build(n))
-	check("ac_16_levels_match_table grid, sentinels, trees, energy", ok)
+		for row in g.heights:
+			for h in row:
+				in_range = in_range and h >= 1 and h <= 11
+	check("ac_16_levels_match_table sentinels, trees, energy, grid", ok)
+	check("ac_16_levels_match_table altitudes 1..11", in_range)
 	check("ac_16_levels_match_table deterministic", same)
+
+
+func block_of(t: Vector2i) -> Vector2i:
+	return Vector2i(t.x / 4, t.y / 4)
 
 
 func ac_17_level_constraints() -> void:
 	var ok := true
 	for n in range(1, 11):
 		var g := Levels.build(n)
-		var seen := {}
-		for i in g.sentinels.size():
-			var a: Vector2i = g.sentinels[i].tile
-			ok = ok and not seen.has(a)
-			seen[a] = true
-			for j in range(i + 1, g.sentinels.size()):
-				var b: Vector2i = g.sentinels[j].tile
-				ok = ok and maxi(absi(a.x - b.x), absi(a.y - b.y)) >= 4
-			ok = ok and maxi(absi(a.x - g.player_tile.x), absi(a.y - g.player_tile.y)) >= 6
-			for z in range(maxi(a.y - 2, 0), mini(a.y + 3, g.size)):
-				for x in range(maxi(a.x - 2, 0), mini(a.x + 3, g.size)):
-					if Vector2i(x, z) != a:
-						ok = ok and g.heights[z][x] <= g.height(a) - 2
+		var why := ""
+		# Sentinels: each stands on the highest tile of the highest block not excluded.
+		var excluded := {}
+		for s in g.sentinels:
+			var t: Vector2i = s.tile
+			var best := 0
+			for z in g.size:
+				for x in g.size:
+					if not excluded.has(block_of(Vector2i(x, z))):
+						best = maxi(best, g.heights[z][x])
+			if excluded.has(block_of(t)) or g.height(t) != best:
+				why = "sentinel placement"
+			for dz in range(-1, 2):
+				for dx in range(-1, 2):
+					excluded[block_of(t) + Vector2i(dx, dz)] = true
+		var low := Levels.lowest_sentinel_altitude(g)
 		for t in g.trees:
-			ok = ok and g.sentinel_at(t) < 0 and t != g.player_tile and g.in_bounds(t)
-		ok = ok and g.height(g.player_tile) <= 1
-		if not ok:
-			print("level %d violates constraints" % n)
-			break
+			if g.sentinel_at(t) >= 0 or t == g.player_tile or g.height(t) >= low:
+				why = "tree placement"
+		if g.trees.size() > 48 - 3 * g.sentinels.size() or g.trees.size() < 10 or g.trees.size() > 32:
+			why = "tree count"
+		if g.height(g.player_tile) > mini(6, low) or g.occupied(g.player_tile) and g.object_at(g.player_tile) != "":
+			why = "start tile"
+		for z in g.size:
+			for x in g.size:
+				for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, -1)]:
+					var u := Vector2i(x, z) + d
+					if g.in_bounds(u) and absi(g.heights[z][x] - g.height(u)) > 4:
+						why = "step > 4"
+		if why != "":
+			print("level %d violates: %s" % [n, why])
+			ok = false
 	check("ac_17_level_constraints all levels", ok)
 
 
-func ac_18_not_watched_at_start() -> void:
-	var ok := true
-	for n in range(1, 11):
-		var g := Levels.build(n)
-		g.advance(0.01)
-		ok = ok and not g.watched_from(g.player_tile) and not g.watched
-	check("ac_18_not_watched_at_start all levels", ok)
+func ac_18_sentinels_idle_until_first_action() -> void:
+	var g := Levels.build(1)
+	var facing: float = g.sentinels[0].facing
+	var energy := g.energy
+	g.advance(60.0)
+	check("ac_18_sentinels_idle no turn and no drain", g.sentinels[0].facing == facing and g.energy == energy and not g.watched)
+	var free := Vector2i(-1, -1)
+	for z in g.size:
+		for x in g.size:
+			if free.x < 0 and g.can_see(Vector2i(x, z)) and not g.occupied(Vector2i(x, z)):
+				free = Vector2i(x, z)
+	check("ac_18_sentinels_idle first action succeeds", g.create(free) == "" and g.awake)
+	g.advance(12.0)
+	check("ac_18_sentinels_idle then they turn or watch", g.sentinels[0].turned != 0.0 or g.watched)
 
 
 func ac_19_solver_bot_clears_all() -> void:

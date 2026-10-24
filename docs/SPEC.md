@@ -403,26 +403,26 @@ fill the test file and test function when the test is written.
 
 | AC | Test file (under `game/tests/`) | Test name |
 |---|---|---|
-| AC-1 | | |
-| AC-2 | | |
-| AC-3 | | |
-| AC-4 | | |
-| AC-5 | | |
-| AC-6 | | |
-| AC-7 | | |
-| AC-8 | | |
-| AC-9 | | |
-| AC-10 | | |
-| AC-11 | | |
+| AC-1 | `test_ac_logic.gd` | `ac_1_new_game` |
+| AC-2 | `test_ac_logic.gd` | `ac_2_create_costs_three` |
+| AC-3 | `test_ac_logic.gd` | `ac_3_create_fails` |
+| AC-4 | `test_ac_logic.gd` | `ac_4_absorb_energy` |
+| AC-5 | `test_ac_logic.gd` | `ac_5_absorb_fails` |
+| AC-6 | `test_ac_logic.gd` | `ac_6_line_of_sight` |
+| AC-7 | `test_ac_logic.gd` | `ac_7_transfer` |
+| AC-8 | `test_ac_logic.gd` | `ac_8_sentinel_turns` |
+| AC-9 | `test_ac_logic.gd` | `ac_9_watched` |
+| AC-10 | `test_ac_logic.gd` | `ac_10_drain_timing` |
+| AC-11 | `test_ac_logic.gd` | `ac_11_win_lose` |
 | AC-12 | | |
 | AC-13 | | |
 | AC-14 | | |
 | AC-15 | | |
-| AC-16 | | |
-| AC-17 | | |
-| AC-18 | | |
-| AC-19 | | |
-| AC-20 | | |
+| AC-16 | `test_ac_logic.gd` | `ac_16_levels_match_table` |
+| AC-17 | `test_ac_logic.gd` | `ac_17_level_constraints` |
+| AC-18 | `test_ac_logic.gd` | `ac_18_sentinels_idle_until_first_action` |
+| AC-19 | `test_ac_logic.gd` | `ac_19_solver_bot_clears_all` |
+| AC-20 | `test_ac_logic.gd` | `ac_20_energy_carry_and_retry` |
 | AC-21 | | |
 | AC-22 | | |
 | AC-23 | | |

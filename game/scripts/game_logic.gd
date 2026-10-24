@@ -11,6 +11,7 @@ const SYNTHOID_ENERGY := 3
 const SENTINEL_ENERGY := 4
 const START_ENERGY := 10
 const MAX_ENERGY := 63
+const MAX_OBJECTS := 64             # trees, synthoids, Sentinels and the player's body together
 const SENTINEL_TURN_STEP := 28.125  # degrees per turn
 const SENTINEL_TURN_TIME := 11.94   # seconds between turns
 const SENTINEL_FOV := 56.25         # degrees, total
@@ -28,6 +29,7 @@ const MSG_OCCUPIED := "Something is already there"
 const MSG_OWN_TILE := "You are standing there"
 const MSG_NO_ENERGY := "Not enough energy: a body costs 3"
 const MSG_NOTHING := "Nothing to absorb there"
+const MSG_FULL := "The valley is full of objects"
 const MSG_OVER := "This hill is finished"
 const MSG_OFF_GRID := "Aim at a tile"
 
@@ -53,6 +55,7 @@ var energy := START_ENERGY
 var start_energy := START_ENERGY  # energy the level began with (used for retry)
 var state := "playing"            # "playing", "won" or "lost"
 var watched := false
+var awake := false                # Sentinels stay idle until the first action
 var watch_ticks := 0              # consecutive ticks watched
 
 var _pending := 0.0
@@ -105,6 +108,10 @@ func object_at(t: Vector2i) -> String:
 	if synthoids.has(t):
 		return "synthoid"
 	return ""
+
+
+func object_count() -> int:
+	return trees.size() + synthoids.size() + sentinels.size() + 1
 
 
 func occupied(t: Vector2i) -> bool:
@@ -181,9 +188,11 @@ func create(t: Vector2i) -> String:
 		return MSG_HIDDEN
 	if energy < SYNTHOID_COST:
 		return MSG_NO_ENERGY
+	if object_count() >= MAX_OBJECTS:
+		return MSG_FULL
 	synthoids[t] = true
 	_set_energy(energy - SYNTHOID_COST)
-	_refresh()
+	_wake()
 	return ""
 
 
@@ -196,7 +205,7 @@ func move(t: Vector2i) -> String:
 		return MSG_NO_TARGET
 	synthoids.erase(t)
 	player_tile = t
-	_refresh()
+	_wake()
 	return ""
 
 
@@ -222,13 +231,13 @@ func absorb(t: Vector2i) -> String:
 		"sentinel":
 			sentinels.remove_at(sentinel_at(t))
 			_set_energy(energy + SENTINEL_ENERGY)
-	_refresh()
+	_wake()
 	return ""
 
 
 func advance(seconds: float) -> void:
 	## Step the Sentinels, watching and draining by `seconds` of game time.
-	if state != "playing":
+	if state != "playing" or not awake:
 		return
 	_pending += seconds
 	var n := int(floor(_pending / _TICK + 0.000001))
@@ -253,7 +262,10 @@ func _tick() -> void:
 		watch_ticks += 1
 		var since := watch_ticks - _DELAY_TICKS
 		if since >= 0 and since % _INTERVAL_TICKS == 0:
-			_set_energy(energy - DRAIN_AMOUNT)
+			if energy <= 0:
+				state = "lost"
+			else:
+				_set_energy(energy - DRAIN_AMOUNT)
 	else:
 		watch_ticks = 0
 
@@ -262,12 +274,14 @@ func update_watch() -> void:
 	var eye := eye_position()
 	watched = false
 	for s in sentinels:
-		s.sees = sentinel_sees(s, eye)
+		s.sees = awake and sentinel_sees(s, eye)
 		watched = watched or s.sees
 
 
-func _refresh() -> void:
-	## After the world changed: recompute watching and the win/lose state.
+func _wake() -> void:
+	## After a successful action: wake the Sentinels, then recompute watching
+	## and the win state.
+	awake = true
 	update_watch()
 	if not watched:
 		watch_ticks = 0
@@ -284,8 +298,6 @@ func _check_state() -> void:
 		return
 	if sentinels.is_empty():
 		state = "won"
-	elif energy <= 0:
-		state = "lost"
 
 
 func _blocked(t: Vector2i) -> String:

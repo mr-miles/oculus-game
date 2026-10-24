@@ -4,6 +4,7 @@ extends RefCounted
 ## (Sentinels first), otherwise hop to the best visible tile.
 
 const SECONDS_PER_ACTION := 1.0
+const HOP_RADIUS := 10  # tiles around the player considered for a hop
 
 
 static func solve(g: GameLogic, max_steps := 200) -> bool:
@@ -17,18 +18,19 @@ static func solve(g: GameLogic, max_steps := 200) -> bool:
 
 
 static func _step(g: GameLogic) -> bool:
-	for kind in ["sentinel", "tree"]:
-		for z in g.size:
-			for x in g.size:
-				var t := Vector2i(x, z)
-				if g.object_at(t) == kind and g.can_see(t):
-					return g.absorb(t) == ""
+	for s in g.sentinels:
+		if g.can_see(s.tile):
+			return g.absorb(s.tile) == ""
+	for t in g.trees:
+		if g.can_see(t):
+			return g.absorb(t) == ""
 	if g.energy < GameLogic.SYNTHOID_COST:
 		return false
 	var best := Vector2i(-1, -1)
 	var best_score := -INF
-	for z in g.size:
-		for x in g.size:
+	var p := g.player_tile
+	for z in range(maxi(p.y - HOP_RADIUS, 0), mini(p.y + HOP_RADIUS + 1, g.size)):
+		for x in range(maxi(p.x - HOP_RADIUS, 0), mini(p.x + HOP_RADIUS + 1, g.size)):
 			var t := Vector2i(x, z)
 			if g.occupied(t) or not g.can_see(t):
 				continue
