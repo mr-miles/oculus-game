@@ -20,14 +20,13 @@ godot = "4.7.2-stable"            # aqua registry: godotengine/godot, Linux x86_
 "http:godot-openxr-vendors" = { version = "5.1.0-stable", url = "https://github.com/GodotVR/godot_openxr_vendors/releases/download/5.1.0-stable/godotopenxrvendorsaddon.zip", checksum = "sha256:6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911" }
 
 [env]
-# Keep Godot's per-user state (export templates, editor settings) and the SDK/Gradle
-# caches inside the repo's .toolchain so nothing hidden in $HOME can mask a missing step.
+# SDK and Gradle caches live inside the repo's .toolchain (git-ignored), so nothing hidden
+# in $HOME can mask a missing step. (tools/env.sh also points Godot's XDG dirs there; that
+# is not done here because mise itself would follow XDG_DATA_HOME and reinstall its tools.)
 TOOLCHAIN_DIR = "{{config_root}}/.toolchain"
 ANDROID_HOME = "{{config_root}}/.toolchain/android-sdk"
 ANDROID_SDK_ROOT = "{{config_root}}/.toolchain/android-sdk"
 GRADLE_USER_HOME = "{{config_root}}/.toolchain/gradle"
-XDG_DATA_HOME = "{{config_root}}/.toolchain/xdg/data"
-XDG_CONFIG_HOME = "{{config_root}}/.toolchain/xdg/config"
 
 [tasks.setup]
 description = "Install SDK packages, Godot Android templates, keystore, settings (idempotent)"

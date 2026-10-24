@@ -20,12 +20,14 @@ echo "== Android SDK packages"
 if [ ! -d "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION" ]; then
   mkdir -p "$ANDROID_HOME/cmdline-tools"
   rm -rf "$ANDROID_HOME/cmdline-tools/latest"
-  CT="$(mise where http:android-cmdline-tools)"
+  CT="$CMDLINE_TOOLS_DIR"
   SRC="$(find "$CT" -type d -name cmdline-tools | head -1)"; [ -n "$SRC" ] || SRC="$CT"
   cp -r "$SRC" "$ANDROID_HOME/cmdline-tools/latest"; chmod +x "$ANDROID_HOME"/cmdline-tools/latest/bin/*
   SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME"
   yes | $SM --licenses >/dev/null || true
-  $SM "platform-tools" "build-tools;$BUILD_TOOLS_VERSION" "platforms;android-35"
+  # sdkmanager redraws a progress bar with carriage returns; keep only the lines that matter.
+  $SM "platform-tools" "build-tools;$BUILD_TOOLS_VERSION" "platforms;android-35" 2>&1 \
+    | tr '\r' '\n' | grep -E "Installing|Warning|Error|error" | sort -u || true
 fi
 
 echo "== Godot Android export templates (checksummed)"
