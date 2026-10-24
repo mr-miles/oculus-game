@@ -1,5 +1,6 @@
 # Shared settings. Source, don't run. Run via `mise run ...` (or `mise exec -- ...`) so
 # JAVA_HOME/PATH/ANDROID_HOME come from mise.toml.
+[ -n "${QUEST_ENV_DONE:-}" ] && return 0   # already sourced by a parent script (XDG dirs changed below)
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 export GAME="$REPO_ROOT/game"
@@ -18,3 +19,4 @@ VENDORS_DIR="$(mise where http:godot-openxr-vendors)"; export VENDORS_DIR
 export XDG_DATA_HOME="$TOOLCHAIN_DIR/xdg/data" XDG_CONFIG_HOME="$TOOLCHAIN_DIR/xdg/config"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 export BUILD_TOOLS="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+export QUEST_ENV_DONE=1
