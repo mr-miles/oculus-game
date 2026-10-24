@@ -2,7 +2,7 @@
 
 ## Answers
 
-1. **Headless APK build on Linux with Godot 4.7.2 + OpenXR Vendors 5.1.0: yes** (high confidence). `tools/setup-toolchain.sh` then `tools/build-apk.sh` produce a 90 MB arm64 APK, signed (v2), with the Quest manifest entries (`com.oculus.supportedDevices=quest2|quest3|quest3s`, `com.oculus.intent.category.VR`, OpenXR loader and Vendors library packaged). Checked by `tools/verify-apk.sh` (aapt2 + apksigner).
+1. **Headless APK build on Linux with Godot 4.7.2 + OpenXR Vendors 5.1.0: yes** (high confidence). `mise run setup` then `mise run build` produce a 90 MB arm64 APK, signed (v2), with the Quest manifest entries (`com.oculus.supportedDevices=quest2|quest3|quest3s`, `com.oculus.intent.category.VR`, OpenXR loader and Vendors library packaged). Checked by `tools/verify-apk.sh` (aapt2 + apksigner).
 2. **Sentinel-style hello world: rules and scene tested, VR path not run** (high confidence for rules, none for on-device behaviour). 12 logic checks pass; a headless scene smoke test passes on the flat fallback path.
 3. **Human guide: written, unverified on a device** (medium-low). adb works as a tool on the build host; nothing was ever connected.
 
@@ -32,3 +32,10 @@ Keep: the pinned `tools/` pipeline, `verify-apk.sh` as a CI gate, the pure-GDScr
 Rebuild: the view (`main.gd`: build scene in `.tscn`, real art, locomotion comfort such as snap turn, proper Sentinel AI and absorb/energy balancing).
 Next, in order: (1) a human runs the device guide and reports; (2) fix whatever the first device run breaks; (3) measure frame time with OVR Metrics Tool on Quest 2; (4) a release keystore held outside git and `--export-release` (+ `gradle_build/export_format` AAB only if going to the store); (5) CI runner image with the toolchain baked in (the setup takes ~10 min); (6) decide the real package id; (7) check the Meta store requirements if distribution is wanted (not covered here).
 Risks: unverified on hardware; Meta's developer-mode flow changes often; plugin/engine version coupling (plugin 5.1.0 says Godot >= 4.6; tested only with 4.7.2).
+
+## Reproducible toolchain with mise (follow-up)
+
+- `mise.toml` pins Java (Temurin 17.0.21+9), Godot 4.7.2 (aqua registry) and, through the `http:` backend with sha256, the Android command-line tools and the OpenXR Vendors plugin. `mise.lock` holds checksums for the registry tools. SDK packages and Godot templates are fetched by `tools/setup-android.sh` (templates sha512-checked). Gradle itself comes from the project's wrapper.
+- Clean-state proof: fresh clone, no mise data or cache dirs, empty Android SDK dir, Godot settings and templates redirected into `.toolchain`, earlier toolchain deleted (not just hidden: the disk is too small for two); `mise run ci` took 6m46s after tools were installed and passed the tests and all 9 verify checks. The resulting APK has the same size as before (85,924,415 bytes), an identical manifest, and identical content for 135 of 137 entries; the 2 differing entries are the serialized main scene and the asset index (same size), not native code.
+- Pitfalls hit: (1) setting XDG_DATA_HOME in mise's env makes mise reinstall all tools there (doubling 0.7 GB); the redirect now happens only in `tools/env.sh`, after `mise where`. (2) The aqua Godot package has no `godot` binary name, only `Godot_v4.7.2-stable_linux.x86_64`. (3) `mise run` computes PATH before installing, so scripts locate tools with `mise where`. (4) Installing registry tools with attestations (e.g. actionlint) needs tuf-repo-cdn.sigstore.dev; Godot and Java did not.
+- CI workflow `.github/workflows/build-apk.yml`: not run (no GitHub Actions here). Only parsed with PyYAML (structure fine); actionlint could not be used.
