@@ -628,19 +628,19 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-41 | | |
 | AC-42 | | |
 | AC-43 | | |
-| AC-44 | | |
+| AC-44 | `test_ac_logic.gd` | `ac_44_create_boulder` |
 | AC-45 | | |
-| AC-46 | | |
-| AC-47 | | |
-| AC-48 | | |
-| AC-49 | | |
-| AC-50 | | |
+| AC-46 | `test_ac_logic.gd` | `ac_46_trees_not_creatable` |
+| AC-47 | `test_ac_logic.gd` | `ac_47_stacks` |
+| AC-48 | `test_ac_logic.gd` | `ac_48_absorb_top_only` |
+| AC-49 | `test_ac_logic.gd` | `ac_49_boulders_block_sight` |
+| AC-50 | `test_ac_logic.gd` | `ac_50_energy_math` |
 | AC-51 | | |
 | AC-52 | | |
 | AC-53 | | |
-| AC-54 | | |
-| AC-55 | | |
-| AC-56 | | |
-| AC-57 | | |
-| AC-58 | | |
-| AC-59 | | |
+| AC-54 | `test_ac_logic.gd` | `ac_54_generator_stages` |
+| AC-55 | `test_ac_logic.gd` | `ac_55_no_pits_or_spikes` |
+| AC-56 | `test_ac_logic.gd` | `ac_56_smooth_not_noise` |
+| AC-57 | `test_ac_logic.gd` | `ac_57_flat_share` |
+| AC-58 | `test_ac_logic.gd` | `ac_58_sentinels_on_peaks` |
+| AC-59 | `test_ac_logic.gd` | `ac_59_deterministic` |
