@@ -72,6 +72,18 @@ func _level_shots() -> void:
 	_face(g, spot, tree)
 	g.refresh()
 	await _shot("trees-bigger")
+	# A boulder stack (three boulders and a synthoid on top) seen from a few tiles away.
+	var pile := _free_neighbour(logic, tree)
+	logic.synthoids.erase(pile)
+	logic.boulders[pile] = 3
+	logic.synthoids[pile] = true
+	g.press("grip_click")  # the HUD now reads "Create: Boulder (2)"
+	g.refresh()
+	await _shot("boulder-stack")
+	# Terrain from high above, looking straight down.
+	g.rig.origin.global_position = Vector3(logic.size, 2.2 * logic.size, logic.size)
+	g.rig.origin.rotation_degrees = Vector3(-90, 0, 0)
+	await _shot("terrain-top-view")
 
 
 func _free_neighbour(logic: GameLogic, t: Vector2i) -> Vector2i:

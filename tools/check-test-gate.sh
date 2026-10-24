@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# AC-37 gate: `mise run test` must exit non-zero when any test fails or a test
+# AC-37 gate (and the AC-69 README check below): `mise run test` must exit non-zero when any test fails or a test
 # script cannot even load. Plants a failing test and a broken script, expects
 # tools/run-tests.sh to fail for each, then removes them.
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
+# AC-69: the README describes slopes and flat tiles and no longer says "columns".
+readme="$REPO_ROOT/README.md"
+grep -qiE "slopes|sloping" "$readme" && grep -qi "flat" "$readme" \
+  || { echo "README GATE FAIL: README must mention slopes/sloping and flat"; exit 1; }
+if grep -qi "columns" "$readme"; then echo "README GATE FAIL: README still says columns"; exit 1; fi
+echo "README GATE OK"
 dir="$GAME/tests"
 fail_file="$dir/test_ac_zz_gate_fail.gd"
 broken_file="$dir/test_ac_zz_gate_broken.gd"

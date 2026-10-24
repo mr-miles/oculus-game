@@ -15,8 +15,10 @@ with four pages (Story, Rules, How to play with a controller sketch, Ready).
 Point the right controller at **Back**, **Next** or **Start** and pull the
 trigger. **Start** is on every page and loads level 1.
 
-**World.** A level is a 31 x 31 grid of square stone-green columns (2 m wide,
-altitude 1-11 m) under a blue sky. Red **Sentinels** (tall, with a yellow nose
+**World.** A level is a 31 x 31 grid of square stone-green tiles (2 m wide,
+altitude 1-11 m) with real slopes, ridges and valleys, under a blue sky. Only
+**flat** tiles (darker-brown tiles are sloped) can hold trees, Sentinels,
+the player and anything you create. Red **Sentinels** (tall, with a yellow nose
 that shows where they look) stand on the highest ground; green **trees** (3 m
 tall) are scattered about. There are ten levels; rules and level generation are
 in `docs/SPEC.md` (sections 3-4).
@@ -50,8 +52,11 @@ All rules are pure code in `game/scripts/game_logic.gd` (no nodes) and the ten
 levels in `game/scripts/levels.gd`; the VR view only calls them.
 
 - **Energy.** Start 10 (carried to the next level, at least 10, at most 63). A
-  synthoid costs 3; absorbing gives tree 1, synthoid 3, Sentinel 4. At most 64
-  objects exist at once.
+  synthoid costs 3 and a boulder 2; absorbing gives tree 1, synthoid 3, boulder 2,
+  Sentinel 4 (only the top object of a tile is absorbed). Boulders (0.5 m, up to
+  6 per tile) stack under a synthoid, block sight, and can be made under your
+  own feet to raise your eye. Only flat tiles take objects; trees cannot be
+  created. At most 64 objects exist at once.
 - **Sentinels.** Idle until your first create, absorb or move. Then each turns
   28.125 degrees every 11.94 s (only while it is not watching you) and watches
   a 56.25 degree cone. While you are inside the cone with a clear line of sight
@@ -60,8 +65,10 @@ levels in `game/scripts/levels.gd`; the VR view only calls them.
   happens at 0.
 - **Win / lose.** Absorb every Sentinel to clear the hill; after level 10 the
   ending card shows. A loss lets you retry with the level's original energy.
-- **Levels.** `Levels.build(n)` is deterministic (31 x 31, altitudes 1-11, no
-  neighbour step above 4). Sentinels use the original's 4 x 4 block rule, trees
+- **Levels.** `Levels.build(n)` is deterministic: 31 x 31 tiles on a 32 x 32
+  corner grid (altitudes 1-11, neighbouring corners at most 3 apart) grown by
+  the original's 40-bit LFSR generator, smoothed twice, scaled, repaired and
+  stretched (`Levels.stages(n)` exposes every step). Sentinels use the original's 4 x 4 block rule, trees
   stand below the lowest Sentinel, the start is a low empty tile. Counts per
   level are in `docs/SPEC.md` section 4.
 
