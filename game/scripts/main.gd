@@ -103,8 +103,12 @@ func _build_overlays() -> void:
 
 # --- levels -----------------------------------------------------------------
 
-func load_level(n: int, carried := -1) -> void:
-	logic = Levels.build(n, carried)
+func load_level(n: int) -> void:
+	_enter(Levels.build(n))
+
+
+func _enter(level_logic: GameLogic) -> void:
+	logic = level_logic
 	sentinels_total = logic.sentinels_left()
 	_message = "Aim, then pull the trigger to make a body."
 	_announced = ""
@@ -118,7 +122,7 @@ func load_level(n: int, carried := -1) -> void:
 
 
 func retry_level() -> void:
-	load_level(logic.level, logic.start_energy)
+	_enter(Levels.retry(logic))
 
 
 func go_lobby() -> void:
@@ -373,7 +377,7 @@ func _step_flow(seconds: float) -> void:
 	if logic.level >= Levels.COUNT:
 		go_lobby()
 	else:
-		load_level(logic.level + 1, logic.energy)
+		_enter(Levels.next(logic))
 
 
 # --- aiming and drawing -----------------------------------------------------

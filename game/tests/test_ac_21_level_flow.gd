@@ -11,6 +11,18 @@ func _init() -> void:
 	check("ac_21 HUD says Level 2 of 10", (g.find_child("HudLevel", true, false) as Label3D).text == "Level 2 of 10")
 	g.queue_free()
 	await settle()
+	# A lost level offers the trigger to retry the same level with its original energy.
+	var lost := await new_game(3)
+	var start_energy: int = lost.logic.start_energy
+	lost.logic.energy = 0
+	lost.logic.state = "lost"
+	lost.advance(0.1)
+	check("ac_21 lost message shown", (lost.find_child("HudMessage", true, false) as Label3D).text.contains("try again"))
+	lost.press("trigger_click")
+	check("ac_21 trigger retries the same level", lost.logic.level == 3 and lost.logic.state == "playing"
+			and lost.logic.energy == start_energy)
+	lost.queue_free()
+	await settle()
 	var last := await new_game(10)
 	while last.logic.sentinels_left() > 0:
 		absorb_one_sentinel(last)
