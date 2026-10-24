@@ -31,6 +31,7 @@ Choose **A (adb)** or **B (Meta Quest Developer Hub)**.
 1. Install `adb` (Android platform-tools). On the build machine it is at `$TOOLCHAIN/sdk/platform-tools/adb`; otherwise download "SDK Platform-Tools" from developer.android.com.
 2. **[HUMAN]** Connect the headset to the computer with the USB-C cable. Put the headset on.
 3. **[HUMAN]** In the headset a dialog "Allow USB debugging?" appears: tick **Always allow from this computer**, then **Allow**. (If it doesn't appear: unplug and replug, or toggle Developer Mode off/on.)
+3a. On Linux, if `adb devices` shows nothing or `no permissions`: add a udev rule for Meta's vendor id and replug, e.g. `echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="2833", MODE="0666", GROUP="plugdev"' | sudo tee /etc/udev/rules.d/51-quest.rules && sudo udevadm control --reload`. (Id from the research pack; confirm with `lsusb`.) The headset may also show a "USB connected / allow access to data" (MTP) prompt: accept it.
 4. On the computer:
    ```sh
    adb devices                 # should list one device as "device" (not "unauthorized" / "no permissions")

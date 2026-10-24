@@ -9,10 +9,10 @@
 ## Not run (no headset)
 
 - The app has never started on an OpenXR runtime. On the build host Godot reports "Failed to find default runtime" and falls back to a flat camera; the `xr_active` branch of `main.gd`, controller tracking, the ray, the button names (`trigger_click`, `ax_button`, `by_button` come from the generated default action map, which binds Touch controller A/B/trigger) and the HUD placement are untested.
-- Install via adb or MQDH, Unknown Sources listing, Guardian, framerate (72 Hz target is unmeasured), thermal behaviour, Quest 2 specific rendering (Mobile renderer / Vulkan, foveation settings are the defaults suggested by Godot docs, not tuned).
+- Install via adb or MQDH, Unknown Sources listing, Guardian, framerate (72 Hz target is unmeasured), thermal behaviour, Quest 2 specific rendering (Compatibility renderer, no foveation or tuning).
 - Developer account and Developer Mode steps are from memory of Meta's docs, not followed.
 - Release-mode signing and `--export-release`.
-- The research pack (drive a-1) was never visible to me (`no artifact a-1` for fetch and list), so the build was derived from Godot's and the plugin's own releases; I cannot say where it agrees or disagrees with the pack.
+- The pack was first invisible to me (a-1), then republished as a-2; I compared it after the first build. Differences: (1) my first build used the Mobile renderer; switched to the pack's Compatibility (OpenGL ES 3) before final, so what was built and verified is Compatibility. (2) The pack lists NDK 28.1 and CMake 3.10.2 as prerequisites; the debug Gradle build succeeded without either (NDK would not fit on the 8 GB build disk; it may matter for release builds or native plugins, untested). (3) I used the plugin zip's `addons/` layout under `asset/`, not `assets/`. (4) The pack suggests `adb shell monkey -p <package> 1` to launch (unverified there); the guide uses `am start` with the component name read from the manifest. (5) The pack's Linux adb notes (udev rule for Meta vendor id 2833, MTP notification prompt) are added to the guide.
 
 ## What went wrong on the way (useful for a dev team)
 

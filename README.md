@@ -11,7 +11,7 @@ selectable only if the line of sight from your eye to it is not blocked by
 terrain (cursor yellow = visible, red = hidden). The left-hand label shows
 energy.
 
-Stack: Godot 4.7.2 (Mobile renderer, Vulkan), Godot OpenXR Vendors plugin 5.1.0
+Stack: Godot 4.7.2 (Compatibility renderer, OpenGL ES 3, as the research pack recommends), Godot OpenXR Vendors plugin 5.1.0
 (Meta flavour), Gradle build, arm64-v8a, Quest 2 / 3 / 3S in the manifest.
 
 ## Layout
