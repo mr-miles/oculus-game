@@ -80,6 +80,18 @@ func _level_shots() -> void:
 	g.press("grip_click")  # the HUD now reads "Create: Boulder (2)"
 	g.refresh()
 	await _shot("boulder-stack")
+	# A slope close-up: stand on a flat tile beside a sloped one and look at it.
+	var slope := find_tile(g, func(t: Vector2i) -> bool: return not logic.is_flat(t) and _flat_neighbour(logic, t).x >= 0)
+	var edge := _flat_neighbour(logic, slope)
+	logic.player_tile = edge
+	g.rig.origin.rotation_degrees = Vector3.ZERO
+	g.rig.place_at(logic.top_position(edge))
+	_face(g, edge, slope)
+	g.aim_at(slope)
+	g.refresh()
+	await _shot("slope-closeup")
+	g.press("trigger_click")  # "Needs flat ground"
+	await _shot("slope-needs-flat-ground")
 	# Terrain from high above, looking straight down.
 	g.rig.origin.global_position = Vector3(logic.size, 2.2 * logic.size, logic.size)
 	g.rig.origin.rotation_degrees = Vector3(-90, 0, 0)
@@ -106,3 +118,11 @@ func _spot_viewing(logic: GameLogic, tree: Vector2i) -> Vector2i:
 					return c
 	logic.player_tile = keep
 	return keep
+
+
+func _flat_neighbour(logic: GameLogic, t: Vector2i) -> Vector2i:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var n: Vector2i = t + d
+		if logic.in_bounds(n) and logic.is_flat(n) and not logic.occupied(n):
+			return n
+	return Vector2i(-1, -1)

@@ -767,8 +767,8 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-62 | `test_ac_logic.gd` | `ac_62_slopes_in_levels` |
 | AC-63 | `test_ac_logic.gd` | `ac_63_objects_only_on_flat` |
 | AC-64 | `test_ac_logic.gd` | `ac_64_sight_over_slopes` |
-| AC-65 | | |
-| AC-66 | | |
-| AC-67 | | |
-| AC-68 | | |
+| AC-65 | `test_ac_65_aim_slope.gd` | `ac_65 ...` PASS lines |
+| AC-66 | `test_ac_66_terrain_geometry.gd` | `ac_66 ...` PASS lines |
+| AC-67 | `test_ac_67_terrain_colours.gd` | `ac_67 ...` PASS lines |
+| AC-68 | `test_ac_68_move_flat_height.gd` | `ac_68 ...` PASS lines |
 | AC-69 | `tools/check-test-gate.sh` (`mise run test-gate`) | `README GATE OK` line |
