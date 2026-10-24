@@ -1,202 +1,443 @@
 extends Node3D
-## VR view for the Sentinel-style prototype. Right controller points a ray at
-## tiles: trigger = create synthoid, A = transfer (teleport) into it,
-## B = absorb tree/synthoid. Left-hand label shows energy.
+## VR view of one level. Right controller points a ray at tiles: trigger =
+## create synthoid, A = move into it, B = absorb. Left stick snap-turns, Y
+## pauses, X shows a hint. All rules live in GameLogic; this node only shows
+## the state and forwards input. Tests drive it with press / aim_at / advance.
 
-var logic := GameLogic.new()
-var origin: XROrigin3D
-var camera: XRCamera3D
-var right: XRController3D
-var left: XRController3D
-var ray_mesh: MeshInstance3D
-var cursor: MeshInstance3D
-var hud: Label3D
-var sentinel: Node3D
-var markers := {}  # Vector2i -> Node3D (synthoids, trees)
-var xr_active := false
+const TREE_HEIGHT := 3.0
+const TRUNK_RADIUS := 0.25
+const CANOPY_RADIUS := 0.9
+const SYNTHOID_HEIGHT := 1.6
+const SENTINEL_HEIGHT := 3.0
+const FADE_SECONDS := 0.2
+const CLEARED_SECONDS := 3.0
+const RAY_REACH := 40.0
+const RAY_STEP := 0.15
+const MSG_NO_MOVE := "Aim at a blue synthoid you can see"
+const MSG_NO_TILE := "Aim at a tile you can see"
+const MSG_LOST := "You ran out of energy. Pull the trigger to try again."
+const COLOR_SYNTHOID := Color(0.2, 0.4, 1.0)
+const COLOR_TREE := Color(0.1, 0.8, 0.2)
+const COLOR_SENTINEL := Color(0.8, 0.15, 0.15)
+const COLOR_NOSE := Color(1, 0.9, 0.2)
+
+var start_level := 1          ## set by the lobby before the node enters the tree
+var auto_advance := true      ## tests turn this off and call advance() themselves
+var logic: GameLogic
+var rig: Rig
+var hud: Hud
+var sfx: Sfx
+var menu: Menu3D
+var sentinels_total := 0
+var paused := false
+
+var _world: Node3D
+var _cursor: MeshInstance3D
+var _fade: MeshInstance3D
+var _ending: Label3D
+var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
+var _sentinels := {}  # Vector2i -> Node3D
+var _message := ""
+var _aim_tile := Vector2i(-1, -1)
+var _aim_forced := false
+var _fade_left := -1.0
+var _move_to := Vector2i(-1, -1)
+var _cleared_left := -1.0
+var _announced := ""
 
 
 func _ready() -> void:
-	_setup_xr()
+	Scenery.add_sky(self)
+	rig = Rig.new()
+	add_child(rig)
+	rig.button.connect(_dispatch)
+	rig.left_button.connect(_dispatch)
+	rig.snap.connect(func(d: int) -> void: _dispatch("stick_right" if d > 0 else "stick_left"))
+	sfx = Sfx.new()
+	add_child(sfx)
+	hud = Hud.new()
+	rig.camera.add_child(hud)
+	_build_overlays()
+	_cursor = Scenery.mesh_node("Cursor", _disc(0.8, 0.04), Color.WHITE, Vector3.ZERO)
+	_cursor.material_override = Rig.unshaded(Color.WHITE)
+	_cursor.visible = false
+	add_child(_cursor)
+	load_level(start_level)
+
+
+func _disc(radius: float, height: float) -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = radius
+	c.bottom_radius = radius
+	c.height = height
+	return c
+
+
+func _build_overlays() -> void:
+	_fade = Scenery.mesh_node("Vignette", QuadMesh.new(), Color.BLACK, Vector3(0, 0, -0.3))
+	(_fade.mesh as QuadMesh).size = Vector2(2, 2)
+	_fade.material_override = Rig.unshaded(Color(0, 0, 0, 0))
+	(_fade.material_override as StandardMaterial3D).no_depth_test = true
+	(_fade.material_override as StandardMaterial3D).render_priority = 100
+	_fade.visible = false
+	rig.camera.add_child(_fade)
+	_ending = Label3D.new()
+	_ending.name = "EndingCard"
+	_ending.text = "The valley is bright again!\nThe Sentinels are friendly beacons now.\nThank you for playing."
+	_ending.font_size = 56
+	_ending.pixel_size = 0.0015
+	_ending.no_depth_test = true
+	_ending.render_priority = 12
+	_ending.position = Vector3(0, 0.25, -1.2)
+	_ending.visible = false
+	rig.camera.add_child(_ending)
+	menu = Menu3D.new(Vector2(1.0, 0.75))
+	menu.name = "PauseMenu"
+	menu.position = Vector3(0, 0, -1.0)
+	menu.add_label("Title", Vector2(0, 0.28), 56).text = "Paused"
+	menu.add_button("ResumeButton", "resume", "Resume", Vector2(0, 0.12), Vector2(0.7, 0.14))
+	menu.add_button("RestartButton", "restart", "Restart level", Vector2(0, -0.06), Vector2(0.7, 0.14))
+	menu.add_button("LobbyButton", "lobby", "Back to lobby", Vector2(0, -0.24), Vector2(0.7, 0.14))
+	menu.chosen.connect(_on_pause_choice)
+	menu.visible = false
+	rig.camera.add_child(menu)
+
+
+# --- levels -----------------------------------------------------------------
+
+func load_level(n: int, carried := -1) -> void:
+	logic = Levels.build(n, carried)
+	sentinels_total = logic.sentinels_left()
+	_message = "Aim, then pull the trigger to make a body."
+	_announced = ""
+	_cleared_left = -1.0
+	_fade_left = -1.0
+	_ending.visible = false
+	_set_paused(false)
 	_build_world()
-	_place_player()
-	_refresh()
+	rig.place_at(logic.top_position(logic.player_tile))
+	refresh()
 
 
-func _setup_xr() -> void:
-	origin = XROrigin3D.new()
-	add_child(origin)
-	camera = XRCamera3D.new()
-	origin.add_child(camera)
-	left = XRController3D.new()
-	left.tracker = "left_hand"
-	origin.add_child(left)
-	right = XRController3D.new()
-	right.tracker = "right_hand"
-	origin.add_child(right)
-	right.button_pressed.connect(_on_button)
-
-	var xr := XRServer.find_interface("OpenXR")
-	if xr and xr.is_initialized():
-		xr_active = true
-		get_viewport().use_xr = true
-		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-		print("OpenXR active")
-	else:
-		print("OpenXR not available; flat fallback camera")
-		camera.position = Vector3.ZERO
-
-	ray_mesh = MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.004
-	cyl.bottom_radius = 0.004
-	cyl.height = 1.0
-	ray_mesh.mesh = cyl
-	ray_mesh.material_override = _mat(Color(1, 1, 0.3), true)
-	right.add_child(ray_mesh)
-
-	hud = Label3D.new()
-	hud.pixel_size = 0.0007
-	hud.font_size = 48
-	hud.no_depth_test = true
-	hud.rotation_degrees = Vector3(-45, 0, 0)
-	hud.position = Vector3(0, 0.05, -0.05)
-	left.add_child(hud)
+func retry_level() -> void:
+	load_level(logic.level, logic.start_energy)
 
 
-func _mat(c: Color, unshaded := false) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = c
-	if unshaded:
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return m
+func go_lobby() -> void:
+	var lobby: Node = load("res://lobby.tscn").instantiate()
+	get_parent().add_child(lobby)
+	queue_free()
 
 
 func _build_world() -> void:
-	var env := WorldEnvironment.new()
-	env.environment = Environment.new()
-	env.environment.background_mode = Environment.BG_COLOR
-	env.environment.background_color = Color(0.55, 0.75, 0.95)
-	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.7, 0.7, 0.75)
-	add_child(env)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, 35, 0)
-	add_child(sun)
-
-	for z in GameLogic.SIZE:
-		for x in GameLogic.SIZE:
+	if _world:
+		_world.queue_free()
+	_world = Node3D.new()
+	_world.name = "World"
+	add_child(_world)
+	_markers.clear()
+	_sentinels.clear()
+	for z in logic.size:
+		for x in logic.size:
 			var t := Vector2i(x, z)
 			var h := logic.height(t)
-			var m := MeshInstance3D.new()
-			var box := BoxMesh.new()
 			var col_h := float(h) + 1.0  # column reaches below the floor
+			var box := BoxMesh.new()
 			box.size = Vector3(GameLogic.TILE, col_h, GameLogic.TILE)
-			m.mesh = box
-			m.position = Vector3((x + 0.5) * GameLogic.TILE, h - col_h / 2.0, (z + 0.5) * GameLogic.TILE)
-			var checker := (x + z) % 2 == 0
-			m.material_override = _mat(Color(0.25, 0.55, 0.3) if checker else Color(0.2, 0.45, 0.25))
-			add_child(m)
+			var shade := Color(0.25, 0.55, 0.3) if (x + z) % 2 == 0 else Color(0.2, 0.45, 0.25)
+			_world.add_child(Scenery.mesh_node("Tile_%d_%d" % [x, z], box, shade,
+					Vector3((x + 0.5) * GameLogic.TILE, h - col_h / 2.0, (z + 0.5) * GameLogic.TILE)))
 
-	# The Sentinel: a tall rotating figure on the peak.
-	sentinel = Node3D.new()
-	var body := MeshInstance3D.new()
+
+func _sync_objects() -> void:
+	for k in _markers.keys():
+		if logic.object_at(k) != _markers[k].get_meta("kind"):
+			_markers[k].queue_free()
+			_markers.erase(k)
+	for k in _sentinels.keys():
+		if logic.sentinel_at(k) < 0:
+			_sentinels[k].queue_free()
+			_sentinels.erase(k)
+	for t in logic.synthoids.keys():
+		if not _markers.has(t):
+			_markers[t] = _place(_make_synthoid(t), t, "synthoid")
+	for t in logic.trees.keys():
+		if not _markers.has(t):
+			_markers[t] = _place(_make_tree(t), t, "tree")
+	for s in logic.sentinels:
+		if not _sentinels.has(s.tile):
+			var node := _make_sentinel(s.tile)
+			_world.add_child(node)
+			_sentinels[s.tile] = node
+		_sentinels[s.tile].rotation.y = deg_to_rad(s.facing)
+
+
+func _place(node: Node3D, t: Vector2i, kind: String) -> Node3D:
+	node.position = logic.top_position(t)
+	node.set_meta("kind", kind)
+	_world.add_child(node)
+	return node
+
+
+func _make_synthoid(t: Vector2i) -> Node3D:
+	var n := Node3D.new()
+	n.name = "Synthoid_%d_%d" % [t.x, t.y]
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.35
+	cap.height = SYNTHOID_HEIGHT
+	n.add_child(Scenery.mesh_node("Body", cap, COLOR_SYNTHOID, Vector3(0, SYNTHOID_HEIGHT / 2.0, 0)))
+	return n
+
+
+func _make_tree(t: Vector2i) -> Node3D:
+	var n := Node3D.new()
+	n.name = "Tree_%d_%d" % [t.x, t.y]
+	var trunk_h := TREE_HEIGHT * 0.5
+	var trunk := CylinderMesh.new()
+	trunk.top_radius = TRUNK_RADIUS
+	trunk.bottom_radius = TRUNK_RADIUS
+	trunk.height = trunk_h
+	n.add_child(Scenery.mesh_node("Trunk", trunk, Color(0.45, 0.3, 0.15), Vector3(0, trunk_h / 2.0, 0)))
+	var canopy := SphereMesh.new()
+	canopy.radius = CANOPY_RADIUS
+	canopy.height = CANOPY_RADIUS * 2.0
+	n.add_child(Scenery.mesh_node("Canopy", canopy, COLOR_TREE,
+			Vector3(0, TREE_HEIGHT - CANOPY_RADIUS + 0.02, 0)))
+	return n
+
+
+func _make_sentinel(t: Vector2i) -> Node3D:
+	var n := Node3D.new()
+	n.name = "Sentinel_%d_%d" % [t.x, t.y]
+	n.position = logic.top_position(t)
 	var cap := CapsuleMesh.new()
 	cap.radius = 0.4
 	cap.height = 2.2
-	body.mesh = cap
-	body.position.y = 1.1
-	body.material_override = _mat(Color(0.8, 0.15, 0.15))
-	sentinel.add_child(body)
-	var nose := MeshInstance3D.new()
-	var nm := BoxMesh.new()
-	nm.size = Vector3(0.2, 0.2, 0.6)
-	nose.mesh = nm
-	nose.position = Vector3(0, 1.8, -0.5)
-	nose.material_override = _mat(Color(1, 0.9, 0.2))
-	sentinel.add_child(nose)
-	sentinel.position = logic.top_position(logic.sentinel_tile)
-	add_child(sentinel)
-
-	cursor = MeshInstance3D.new()
-	var cm := CylinderMesh.new()
-	cm.top_radius = 0.8
-	cm.bottom_radius = 0.8
-	cm.height = 0.04
-	cursor.mesh = cm
-	cursor.material_override = _mat(Color(1, 1, 0.2), true)
-	cursor.visible = false
-	add_child(cursor)
+	n.add_child(Scenery.mesh_node("Body", cap, COLOR_SENTINEL, Vector3(0, 1.1, 0)))
+	var nose := BoxMesh.new()
+	nose.size = Vector3(0.2, 0.2, 0.6)
+	n.add_child(Scenery.mesh_node("Nose", nose, COLOR_NOSE, Vector3(0, 1.8, 0.5)))
+	return n
 
 
-func _place_player() -> void:
-	origin.position = logic.top_position(logic.player_tile)
+# --- input ------------------------------------------------------------------
+
+func press(button: String) -> void:
+	_dispatch(button)
 
 
-func _refresh() -> void:
-	for k in markers.keys():
-		if not (logic.synthoids.has(k) or logic.trees.has(k)):
-			markers[k].queue_free()
-			markers.erase(k)
-	for t in logic.synthoids.keys():
-		if not markers.has(t):
-			markers[t] = _make_marker(t, Color(0.2, 0.4, 1.0), 1.6)
-	for t in logic.trees.keys():
-		if not markers.has(t):
-			markers[t] = _make_marker(t, Color(0.1, 0.8, 0.2), 1.2)
-	hud.text = "Energy %d\n%s" % [logic.energy, "YOU WIN" if logic.won else "Trig:create A:go B:absorb"]
+func aim_at(tile: Vector2i) -> void:
+	_aim_tile = tile
+	_aim_forced = true
 
 
-func _make_marker(t: Vector2i, c: Color, h: float) -> Node3D:
-	var m := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.35
-	cap.height = h
-	m.mesh = cap
-	m.material_override = _mat(c)
-	m.position = logic.top_position(t) + Vector3(0, h / 2.0, 0)
-	add_child(m)
-	return m
+func advance(seconds: float) -> void:
+	_step_fade(seconds)
+	if not paused:
+		if logic.state == "playing":
+			logic.advance(seconds)
+		_step_flow(seconds)
+	_announce_state()
+	refresh()
 
 
-func _aimed_tile() -> Vector2i:
-	## First tile the right-hand ray enters (marching along the ray).
-	var from := right.global_position
-	var dir := -right.global_transform.basis.z
-	for i in range(1, 400):
-		var p := from + dir * (i * 0.1)
+func _dispatch(button: String) -> void:
+	if paused:
+		match button:
+			"trigger_click":
+				menu.activate(menu.pick(rig.ray_origin(), rig.ray_direction()))
+			"by_left_button":
+				_set_paused(false)
+		refresh()
+		return
+	if button == "by_left_button":
+		_set_paused(true)
+		sfx.play("menu")
+		refresh()
+		return
+	if logic.state == "won":
+		return
+	match button:
+		"trigger_click":
+			if logic.state == "lost":
+				retry_level()
+			else:
+				_finish("create", _check_tile(logic.create))
+		"ax_button":
+			var reason := _check_tile(logic.move)
+			if reason == "":
+				_start_move()
+			_finish("move", MSG_NO_MOVE if reason != "" else "")
+		"by_button":
+			_finish("absorb", _check_tile(logic.absorb))
+		"ax_left_button":
+			_message = _hint()
+			refresh()
+		"stick_right":
+			rig.snap_turn(1)
+		"stick_left":
+			rig.snap_turn(-1)
+
+
+func choose_pause(id: String) -> void:
+	menu.activate(id)
+
+
+func _on_pause_choice(id: String) -> void:
+	match id:
+		"resume":
+			_set_paused(false)
+		"restart":
+			retry_level()
+		"lobby":
+			go_lobby()
+	refresh()
+
+
+func _set_paused(on: bool) -> void:
+	paused = on
+	menu.visible = on
+
+
+func _check_tile(action: Callable) -> String:
+	## Run a tile action on the aimed tile; "" on success, else the HUD reason.
+	var t := aimed_tile()
+	if not logic.in_bounds(t):
+		return MSG_NO_TILE
+	return action.call(t)
+
+
+func _finish(sound: String, reason: String) -> void:
+	if reason == "":
+		_message = ""
+		sfx.play(sound)
+		rig.haptic(0.2)
+	else:
+		_message = reason
+		sfx.play("fail")
+		rig.haptic(0.05)
+	_announce_state()
+	refresh()
+
+
+func _hint() -> String:
+	if logic.state == "lost":
+		return "Pull the trigger to try again."
+	if logic.watched:
+		return "Hide behind a hill, or absorb the Sentinel."
+	if logic.energy < GameLogic.SYNTHOID_COST:
+		return "Aim at a tree and press B to gain energy."
+	return "Make a body on a high tile you can see (trigger), then press A."
+
+
+# --- moving, flow -----------------------------------------------------------
+
+func _start_move() -> void:
+	_move_to = logic.player_tile
+	_fade_left = FADE_SECONDS
+
+
+func _step_fade(seconds: float) -> void:
+	if _fade_left < 0.0:
+		return
+	var before := _fade_left
+	_fade_left -= seconds
+	var half := FADE_SECONDS / 2.0
+	if before > half and _fade_left <= half:
+		rig.place_at(logic.top_position(_move_to))
+	var alpha := 0.0
+	if _fade_left > 0.0:
+		alpha = 1.0 - absf(_fade_left - half) / half
+	_fade.visible = alpha > 0.0
+	(_fade.material_override as StandardMaterial3D).albedo_color.a = alpha
+	if _fade_left <= 0.0:
+		_fade_left = -1.0
+		rig.place_at(logic.top_position(_move_to))
+
+
+func _announce_state() -> void:
+	if logic.state == _announced or logic.state == "playing":
+		return
+	_announced = logic.state
+	if logic.state == "won":
+		sfx.play("win")
+		if logic.level >= Levels.COUNT:
+			_message = "You freed the valley!"
+			_ending.visible = true
+		else:
+			_message = "Hill cleared!"
+		_cleared_left = CLEARED_SECONDS
+	else:
+		sfx.play("lose")
+		_message = MSG_LOST
+
+
+func _step_flow(seconds: float) -> void:
+	if _cleared_left < 0.0:
+		return
+	_cleared_left -= seconds
+	if _cleared_left > 0.0:
+		return
+	_cleared_left = -1.0
+	if logic.level >= Levels.COUNT:
+		go_lobby()
+	else:
+		load_level(logic.level + 1, logic.energy)
+
+
+# --- aiming and drawing -----------------------------------------------------
+
+func aimed_tile() -> Vector2i:
+	if _aim_forced:
+		return _aim_tile
+	return _ray_tile()
+
+
+func _ray_tile() -> Vector2i:
+	## First tile whose column (terrain plus anything standing on it) the
+	## right-hand ray enters. Objects count as part of the column, so aiming at
+	## a tree's canopy or a synthoid's head selects that tile.
+	var from := rig.ray_origin()
+	var dir := rig.ray_direction()
+	var steps := int(RAY_REACH / RAY_STEP)
+	for i in range(1, steps):
+		var p := from + dir * (i * RAY_STEP)
 		var t := Vector2i(int(floor(p.x / GameLogic.TILE)), int(floor(p.z / GameLogic.TILE)))
-		if not logic.in_bounds(t):
-			continue
-		if p.y <= float(logic.height(t)):
+		if logic.in_bounds(t) and p.y <= float(logic.height(t)) + _object_height(t):
 			return t
 	return Vector2i(-1, -1)
 
 
+func _object_height(t: Vector2i) -> float:
+	match logic.object_at(t):
+		"tree":
+			return TREE_HEIGHT
+		"synthoid":
+			return SYNTHOID_HEIGHT
+		"sentinel":
+			return SENTINEL_HEIGHT
+	return 0.0
+
+
+func refresh() -> void:
+	_sync_objects()
+	hud.show_state(logic, sentinels_total, _message)
+
+
 func _process(delta: float) -> void:
-	sentinel.rotate_y(delta * 0.5)
-	var t := _aimed_tile()
-	if logic.in_bounds(t):
-		cursor.visible = true
-		cursor.position = logic.top_position(t) + Vector3(0, 0.03, 0)
-		cursor.material_override.albedo_color = Color(1, 1, 0.2) if logic.can_see(t) else Color(1, 0.2, 0.2)
-	else:
-		cursor.visible = false
-	ray_mesh.position = Vector3(0, 0, -0.5)
-	ray_mesh.rotation_degrees = Vector3(90, 0, 0)
-	(ray_mesh.mesh as CylinderMesh).height = 1.0
-
-
-func _on_button(name: String) -> void:
-	var t := _aimed_tile()
-	if not logic.in_bounds(t):
+	if auto_advance:
+		advance(delta)
+	if paused:
+		_cursor.visible = false
+		menu.highlight(menu.pick(rig.ray_origin(), rig.ray_direction()))
 		return
-	match name:
-		"trigger_click":
-			logic.place_synthoid(t)
-		"ax_button":
-			if logic.transfer(t):
-				_place_player()
-		"by_button":
-			logic.absorb(t)
-	_refresh()
+	var t := aimed_tile()
+	if logic.in_bounds(t):
+		_cursor.visible = true
+		_cursor.position = logic.top_position(t) + Vector3(0, 0.03, 0)
+		var c := Color(1, 1, 0.2) if logic.can_see(t) else Color(1, 0.2, 0.2)
+		(_cursor.material_override as StandardMaterial3D).albedo_color = c
+		rig.set_ray_length(maxf(rig.ray_origin().distance_to(_cursor.position), 0.2))
+	else:
+		_cursor.visible = false
+		rig.set_ray_length(3.0)
