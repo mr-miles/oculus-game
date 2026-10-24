@@ -67,7 +67,7 @@ arm64-Linux build-tools, so that path is untested and likely rough.
 |---|---|
 | `mise.toml`, `mise.lock` | pinned tools, env and tasks; the lock file carries checksums |
 | `game/` | Godot project: `scripts/game_logic.gd`, `levels.gd` (rules, levels); `main.gd`, `lobby.gd`, `hud.gd`, `rig.gd`, `menu3d.gd`, `terrain.gd`, `sfx.gd` (VR view); `tests/` |
-| `tools/lint.sh`, `tools/screenshots.sh` | GDScript lint; render `docs/screenshots/` (needs `xvfb-run`) |
+| `tools/lint.sh`, `tools/screenshots.sh`, `tools/check-names.sh` | GDScript lint; render `docs/screenshots/` (needs `xvfb-run`) |
 | `tools/setup-android.sh` | SDK packages, Godot Android templates (sha512-checked), debug keystore, settings |
 | `tools/build-apk.sh`, `run-tests.sh`, `verify-apk.sh` | build, tests, APK checks |
 | `.github/workflows/build-apk.yml` | CI: same tasks, APK uploaded as artifact (not run here; see below) |
@@ -92,6 +92,7 @@ mise run setup                         # installs pinned tools, SDK, templates (
 mise run build                         # tests, export, verify -> game/build/quest-sentinel.apk (~5 min)
 mise run test                          # all headless tests (rules ACs, scene tests)
 mise run lint                          # parse every script, fail on any error or warning
+mise run names                         # AC-38 gate; NAMES_FILE=<list kept outside the repo> (CI sets it)
 mise run screenshots                   # re-render docs/screenshots/ (needs xvfb-run and Mesa GL)
 mise run verify                        # re-check an existing APK
 ```

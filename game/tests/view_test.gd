@@ -1,7 +1,7 @@
 class_name ViewTest
 extends SceneTree
 ## Shared base for the scene tests (AC-12..15, 21..36): PASS/FAIL printing and
-## helpers to build the lobby / a level and to set up board situations.
+## helpers to build the lobby / a level and to set up level situations.
 ## Each test script is its own Godot process:
 ##   godot --headless --path game --script res://tests/test_ac_NN_name.gd
 
