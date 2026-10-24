@@ -5,9 +5,12 @@ extends Node3D
 ## the state and forwards input. Tests drive it with press / aim_at / advance.
 
 const TREE_HEIGHT := 3.0
+const TRUNK_HEIGHT := 1.2
 const TRUNK_RADIUS := 0.25
 const CANOPY_RADIUS := 0.9
 const SYNTHOID_HEIGHT := 1.6
+const BOULDER_RADIUS := 0.8
+const COLOR_BOULDER := Color(0.55, 0.55, 0.58)
 const SENTINEL_HEIGHT := 3.0
 const FADE_SECONDS := 0.2
 const CLEARED_SECONDS := 3.0
@@ -28,6 +31,7 @@ var sfx: Sfx
 var menu: Menu3D
 var sentinels_total := 0
 var paused := false
+var create_kind := "synthoid"  ## what the trigger creates: "synthoid" or "boulder"
 
 var _world: Node3D
 var _cursor: MeshInstance3D
@@ -35,6 +39,8 @@ var _fade: MeshInstance3D
 var _ending: Label3D
 var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
 var _sentinels := {}  # Vector2i -> Node3D
+var _boulders := {}   # Vector2i -> Node3D (a stack), with meta "count"
+var _ghost: MeshInstance3D
 var _message := ""
 var _aim_tile := Vector2i(-1, -1)
 var _aim_forced := false
@@ -60,6 +66,8 @@ func _ready() -> void:
 	_cursor.material_override = Rig.unshaded(Color.WHITE)
 	_cursor.visible = false
 	add_child(_cursor)
+	_ghost = Scenery.mesh_node("Ghost", null, Color.WHITE, Vector3.ZERO)
+	add_child(_ghost)
 	load_level(start_level)
 
 
@@ -109,6 +117,7 @@ func load_level(n: int) -> void:
 
 func _enter(level_logic: GameLogic) -> void:
 	logic = level_logic
+	create_kind = "synthoid"
 	sentinels_total = logic.sentinels_left()
 	_message = "Aim, then pull the trigger to make a body."
 	_announced = ""
@@ -139,6 +148,7 @@ func _build_world() -> void:
 	add_child(_world)
 	_markers.clear()
 	_sentinels.clear()
+	_boulders.clear()
 	var terrain := Terrain.new()
 	_world.add_child(terrain)
 	terrain.build(logic)
@@ -159,12 +169,44 @@ func _sync_objects() -> void:
 	for t in logic.trees.keys():
 		if not _markers.has(t):
 			_markers[t] = _place(_make_tree(t), t, "tree")
+	_sync_boulders()
 	for s in logic.sentinels:
 		if not _sentinels.has(s.tile):
 			var node := _make_sentinel(s.tile)
 			_world.add_child(node)
 			_sentinels[s.tile] = node
 		_sentinels[s.tile].rotation.y = deg_to_rad(s.facing)
+
+
+func _sync_boulders() -> void:
+	for k in _boulders.keys():
+		if logic.boulders.get(k, 0) != _boulders[k].get_meta("count"):
+			_boulders[k].queue_free()
+			_boulders.erase(k)
+	for t in logic.boulders:
+		if not _boulders.has(t):
+			_boulders[t] = _make_boulders(t, logic.boulders[t])
+
+
+func _make_boulders(t: Vector2i, count: int) -> Node3D:
+	## A stack of flat grey slabs, each GameLogic.BOULDER_HEIGHT high, with no gaps.
+	var n := Node3D.new()
+	n.name = "Boulders_%d_%d" % [t.x, t.y]
+	n.set_meta("count", count)
+	n.position = Vector3((t.x + 0.5) * GameLogic.TILE, float(logic.height(t)), (t.y + 0.5) * GameLogic.TILE)
+	for i in count:
+		n.add_child(Scenery.mesh_node("Boulder_%d" % i, _slab(), COLOR_BOULDER,
+				Vector3(0, GameLogic.BOULDER_HEIGHT * (i + 0.5), 0)))
+	_world.add_child(n)
+	return n
+
+
+func _slab() -> CylinderMesh:
+	var c := CylinderMesh.new()
+	c.top_radius = BOULDER_RADIUS * 0.92
+	c.bottom_radius = BOULDER_RADIUS
+	c.height = GameLogic.BOULDER_HEIGHT
+	return c
 
 
 func _place(node: Node3D, t: Vector2i, kind: String) -> Node3D:
@@ -177,17 +219,14 @@ func _place(node: Node3D, t: Vector2i, kind: String) -> Node3D:
 func _make_synthoid(t: Vector2i) -> Node3D:
 	var n := Node3D.new()
 	n.name = "Synthoid_%d_%d" % [t.x, t.y]
-	var cap := CapsuleMesh.new()
-	cap.radius = 0.35
-	cap.height = SYNTHOID_HEIGHT
-	n.add_child(Scenery.mesh_node("Body", cap, COLOR_SYNTHOID, Vector3(0, SYNTHOID_HEIGHT / 2.0, 0)))
+	n.add_child(Scenery.mesh_node("Body", _capsule(), COLOR_SYNTHOID, Vector3(0, SYNTHOID_HEIGHT / 2.0, 0)))
 	return n
 
 
 func _make_tree(t: Vector2i) -> Node3D:
 	var n := Node3D.new()
 	n.name = "Tree_%d_%d" % [t.x, t.y]
-	var trunk_h := TREE_HEIGHT * 0.5
+	var trunk_h := TRUNK_HEIGHT
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = TRUNK_RADIUS
 	trunk.bottom_radius = TRUNK_RADIUS
@@ -195,9 +234,9 @@ func _make_tree(t: Vector2i) -> Node3D:
 	n.add_child(Scenery.mesh_node("Trunk", trunk, Color(0.45, 0.3, 0.15), Vector3(0, trunk_h / 2.0, 0)))
 	var canopy := SphereMesh.new()
 	canopy.radius = CANOPY_RADIUS
-	canopy.height = CANOPY_RADIUS * 2.0
+	canopy.height = CANOPY_RADIUS * 2.0  # 1.8 m: 60% of the 3 m tree
 	n.add_child(Scenery.mesh_node("Canopy", canopy, COLOR_TREE,
-			Vector3(0, TREE_HEIGHT - CANOPY_RADIUS + 0.02, 0)))
+			Vector3(0, TRUNK_HEIGHT + CANOPY_RADIUS + 0.01, 0)))
 	return n
 
 
@@ -257,7 +296,11 @@ func _dispatch(button: String) -> void:
 			if logic.state == "lost":
 				retry_level()
 			else:
-				_finish("create", _check_tile(logic.create))
+				_create()
+		"grip_click":
+			create_kind = "boulder" if create_kind == "synthoid" else "synthoid"
+			sfx.play("menu")
+			refresh()
 		"ax_button":
 			var reason := _check_tile(logic.move)
 			if reason == "":
@@ -272,6 +315,13 @@ func _dispatch(button: String) -> void:
 			rig.snap_turn(1)
 		"stick_left":
 			rig.snap_turn(-1)
+
+
+func _create() -> void:
+	var reason := _check_tile(func(t: Vector2i) -> String: return logic.create(t, create_kind))
+	if reason == "" and aimed_tile() == logic.player_tile:
+		rig.place_at(logic.top_position(logic.player_tile))  # a boulder under you lifts you
+	_finish("create", reason)
 
 
 func choose_pause(id: String) -> void:
@@ -398,7 +448,7 @@ func _ray_tile() -> Vector2i:
 	for i in range(1, steps):
 		var p := from + dir * (i * RAY_STEP)
 		var t := Vector2i(int(floor(p.x / GameLogic.TILE)), int(floor(p.z / GameLogic.TILE)))
-		if logic.in_bounds(t) and p.y <= float(logic.height(t)) + _object_height(t):
+		if logic.in_bounds(t) and p.y <= logic.top_position(t).y + _object_height(t):
 			return t
 	return Vector2i(-1, -1)
 
@@ -416,7 +466,7 @@ func _object_height(t: Vector2i) -> float:
 
 func refresh() -> void:
 	_sync_objects()
-	hud.show_state(logic, sentinels_total, _message)
+	hud.show_state(logic, sentinels_total, create_kind, _message)
 
 
 func _process(delta: float) -> void:
@@ -424,6 +474,7 @@ func _process(delta: float) -> void:
 		advance(delta)
 	if paused:
 		_cursor.visible = false
+		_ghost.visible = false
 		menu.highlight(menu.pick(rig.ray_origin(), rig.ray_direction()))
 		return
 	var t := aimed_tile()
@@ -433,6 +484,25 @@ func _process(delta: float) -> void:
 		var c := Color(1, 1, 0.2) if logic.can_see(t) else Color(1, 0.2, 0.2)
 		(_cursor.material_override as StandardMaterial3D).albedo_color = c
 		rig.set_ray_length(maxf(rig.ray_origin().distance_to(_cursor.position), 0.2))
+		_show_ghost(t)
 	else:
+		_ghost.visible = false
 		_cursor.visible = false
 		rig.set_ray_length(3.0)
+
+
+func _show_ghost(t: Vector2i) -> void:
+	## A translucent preview of what the trigger would create on the aimed tile.
+	var boulder := create_kind == "boulder"
+	_ghost.mesh = _slab() if boulder else _capsule()
+	_ghost.material_override = Rig.unshaded(Color(COLOR_BOULDER, 0.5) if boulder else Color(COLOR_SYNTHOID, 0.5))
+	var lift := 0.0 if boulder else SYNTHOID_HEIGHT / 2.0
+	_ghost.position = logic.top_position(t) + Vector3(0, lift + (GameLogic.BOULDER_HEIGHT / 2.0 if boulder else 0.0), 0)
+	_ghost.visible = true
+
+
+func _capsule() -> CapsuleMesh:
+	var cap := CapsuleMesh.new()
+	cap.radius = 0.35
+	cap.height = SYNTHOID_HEIGHT
+	return cap

@@ -624,20 +624,20 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-37 | `tools/check-test-gate.sh` (`mise run test-gate`); APK: `mise run build` runs `verify-apk.sh` | `TEST GATE OK` lines; `verify` OK lines |
 | AC-38 | `test_ac_38_names_gate.gd`, `tools/check-names.sh` | `ac_38 ...` PASS lines |
 | AC-39 | `test_ac_39_terrain_meshes.gd` | `ac_39 ...` PASS lines |
-| AC-40 | | |
-| AC-41 | | |
-| AC-42 | | |
-| AC-43 | | |
+| AC-40 | `test_ac_40_tree_canopy.gd` | `ac_40 ...` PASS lines |
+| AC-41 | `test_ac_41_tree_shape.gd` | `ac_41 ...` PASS lines |
+| AC-42 | `test_ac_42_hud_top.gd` | `ac_42 ...` PASS lines |
+| AC-43 | `test_ac_43_grip_toggle.gd` | `ac_43 ...` PASS lines |
 | AC-44 | | |
-| AC-45 | | |
+| AC-45 | `test_ac_45_boulder_under_you.gd` | `ac_45 ...` PASS lines |
 | AC-46 | | |
 | AC-47 | | |
 | AC-48 | | |
 | AC-49 | | |
 | AC-50 | | |
-| AC-51 | | |
-| AC-52 | | |
-| AC-53 | | |
+| AC-51 | `test_ac_51_lobby_six_steps.gd` | `ac_51 ...` PASS lines |
+| AC-52 | `test_ac_52_hud_mode.gd` | `ac_52 ...` PASS lines |
+| AC-53 | `test_ac_53_climb_stack.gd` | `ac_53 ...` PASS lines |
 | AC-54 | | |
 | AC-55 | | |
 | AC-56 | | |

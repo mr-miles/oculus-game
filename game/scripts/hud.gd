@@ -5,12 +5,14 @@ extends Node3D
 ## Label3D anchors left-aligned text at its left edge and right-aligned at its right edge.
 
 const PIXEL := 0.0012
-const BAR_WIDTH := 0.5
+const BAR_WIDTH := 0.3
+const BAR_X := -0.17
 const WATCH_RED := Color(1, 0.2, 0.2)
 
 var energy_label: Label3D
 var level_label: Label3D
 var sentinels_label: Label3D
+var mode_label: Label3D
 var message_label: Label3D
 var watched_label: Label3D
 var _bar_fill: MeshInstance3D
@@ -19,16 +21,17 @@ var _border: Node3D
 
 func _init() -> void:
 	name = "Hud"
-	position = Vector3(0, -0.3, -1.2)
-	level_label = _label("HudLevel", Vector2(-0.55, 0.12), HORIZONTAL_ALIGNMENT_LEFT)
-	sentinels_label = _label("HudSentinels", Vector2(0.55, 0.12), HORIZONTAL_ALIGNMENT_RIGHT)
-	energy_label = _label("HudEnergy", Vector2(-0.55, 0.02), HORIZONTAL_ALIGNMENT_LEFT)
-	message_label = _label("HudMessage", Vector2(0, -0.1), HORIZONTAL_ALIGNMENT_CENTER)
-	watched_label = _label("HudWatched", Vector2(0, -0.2), HORIZONTAL_ALIGNMENT_CENTER)
+	position = Vector3(0, 0.45, -1.2)
+	level_label = _label("HudLevel", Vector2(-0.55, 0.15), HORIZONTAL_ALIGNMENT_LEFT)
+	sentinels_label = _label("HudSentinels", Vector2(0.55, 0.15), HORIZONTAL_ALIGNMENT_RIGHT)
+	energy_label = _label("HudEnergy", Vector2(-0.55, 0.07), HORIZONTAL_ALIGNMENT_LEFT)
+	mode_label = _label("HudMode", Vector2(0.55, 0.07), HORIZONTAL_ALIGNMENT_RIGHT)
+	message_label = _label("HudMessage", Vector2(0, -0.03), HORIZONTAL_ALIGNMENT_CENTER)
+	watched_label = _label("HudWatched", Vector2(0, -0.11), HORIZONTAL_ALIGNMENT_CENTER)
 	watched_label.modulate = WATCH_RED
 	watched_label.visible = false
-	_build_bar(Vector2(0.12, 0.02))
-	_build_border(Vector2(1.2, 0.6))
+	_build_bar(Vector2(BAR_X, 0.07))
+	_build_border(Vector2(1.2, 0.44))
 
 
 func _label(node_name: String, at: Vector2, align: HorizontalAlignment) -> Label3D:
@@ -81,19 +84,23 @@ func _build_border(size: Vector2) -> void:
 		q.material_override = mat
 		q.position = Vector3(e[1].x, e[1].y, 0)
 		_border.add_child(q)
-	_border.position = Vector3(0, 0.05, 0)
+	_border.position = Vector3(0, 0.02, 0)
 	_border.visible = false
 	add_child(_border)
 
 
-func show_state(logic: GameLogic, sentinels_total: int, message: String) -> void:
+func show_state(logic: GameLogic, sentinels_total: int, create_kind: String, message: String) -> void:
 	energy_label.text = "Energy %d" % logic.energy
 	level_label.text = "Level %d of %d" % [logic.level, Levels.COUNT]
 	sentinels_label.text = "Sentinels: %d of %d left" % [logic.sentinels_left(), sentinels_total]
 	message_label.text = message
+	if create_kind == "boulder":
+		mode_label.text = "Create: Boulder (%d)" % GameLogic.BOULDER_COST
+	else:
+		mode_label.text = "Create: Synthoid (%d)" % GameLogic.SYNTHOID_COST
 	var frac := clampf(float(logic.energy) / GameLogic.MAX_ENERGY, 0.0, 1.0)
 	_bar_fill.scale.x = maxf(frac, 0.001)
-	_bar_fill.position.x = 0.12 - BAR_WIDTH * (1.0 - frac) / 2.0
+	_bar_fill.position.x = BAR_X - BAR_WIDTH * (1.0 - frac) / 2.0
 	var watched := logic.watched and logic.state == "playing"
 	watched_label.visible = watched
 	_border.visible = watched
