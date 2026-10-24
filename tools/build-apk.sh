@@ -9,6 +9,8 @@ cd "$GAME"
 
 echo "== plugin + tests"
 "$REPO_ROOT/tools/run-tests.sh"
+echo "== lint"
+"$REPO_ROOT/tools/lint.sh"
 
 echo "== android build template"
 if [ ! -f android/.build_version ] || [ "$(cat android/.build_version)" != "$GODOT_TEMPLATE_DIR" ]; then

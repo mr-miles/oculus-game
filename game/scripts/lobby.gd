@@ -44,9 +44,9 @@ func _build_panel() -> void:
 	panel.position = Vector3(0, GameLogic.EYE, -2.0)
 	add_child(panel)
 	_title = panel.add_label("LobbyTitle", Vector2(0, 0.52), 80)
-	_body = panel.add_label("LobbyPage", Vector2(-0.3, 0.05), 44, 1000)
+	_body = panel.add_label("LobbyPage", Vector2(-0.95, 0.42), 40, 780)  # left edge, top
 	_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_body.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_counter = panel.add_label("LobbyCounter", Vector2(0, -0.37), 36)
 	panel.add_button("BackButton", "back", "Back", Vector2(-0.7, -0.52), Vector2(0.4, 0.16))
 	panel.add_button("NextButton", "next", "Next", Vector2(-0.2, -0.52), Vector2(0.4, 0.16))

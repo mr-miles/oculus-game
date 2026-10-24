@@ -55,16 +55,42 @@ func _level_shots() -> void:
 	await _shot("move-1-before")
 	g.press("ax_button")
 	g.advance(0.3)
+	_face(g, logic.player_tile, tree)
 	await _shot("move-2-after")
 	var s: Vector2i = logic.sentinels[0].tile
 	_face(g, logic.player_tile, s)
 	logic.watched = true
-	logic.drain_countdown = 5.2
+	logic.watch_ticks = 194  # 5.2 s until the first drain
 	g.refresh()
 	await _shot("hud-watched-sentinel")
-	# Trees: stand close to one.
+	# Trees: stand a few tiles back so the whole tree is in view, a synthoid beside it for scale.
 	logic.watched = false
-	stand_next_to(g, tree)
-	_face(g, logic.player_tile, tree)
+	var spot := _spot_viewing(logic, tree)
+	logic.synthoids[_free_neighbour(logic, tree)] = true
+	logic.player_tile = spot
+	g.rig.place_at(logic.top_position(spot))
+	_face(g, spot, tree)
 	g.refresh()
 	await _shot("trees-bigger")
+
+
+func _free_neighbour(logic: GameLogic, t: Vector2i) -> Vector2i:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if logic.in_bounds(t + d) and not logic.occupied(t + d):
+			return t + d
+	return t
+
+
+func _spot_viewing(logic: GameLogic, tree: Vector2i) -> Vector2i:
+	## A free tile 3..5 tiles from the tree with a clear line of sight to it.
+	var keep := logic.player_tile
+	for dist in [4, 3, 5]:
+		for d in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
+			var c: Vector2i = tree + d * dist
+			if logic.in_bounds(c) and not logic.occupied(c):
+				logic.player_tile = c
+				if logic.can_see(tree):
+					logic.player_tile = keep
+					return c
+	logic.player_tile = keep
+	return keep

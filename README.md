@@ -10,34 +10,39 @@ plugin 5.1.0 (Meta flavour), Gradle build, arm64-v8a. Toolchain pinned with
 
 ## What the app does (what you see and do in the headset)
 
-**World.** You stand on one tile of a 12 × 12 grid of square stone-green
-columns of different heights, a rolling landscape, under a blue sky. A tall red
-figure with a yellow "nose", the **Sentinel**, stands on the highest tile and
-slowly turns on the spot. Three green capsules are **trees**. The label on your
-left controller shows your **energy** (start: 6) and a hint line.
+**Lobby.** The app starts in a calm lobby: a panel two metres in front of you
+with four pages (Story, Rules, How to play with a controller sketch, Ready).
+Point the right controller at **Back**, **Next** or **Start** and pull the
+trigger. **Start** is on every page and loads level 1.
 
-**Looking.** Turn your head and body freely. There is no walking or stick
-turning: you move only by transferring (below). Point your right controller: a
-thin yellow ray comes out of it and a flat disc marks the tile you aim at.
-**Yellow disc = you can see that tile** (no terrain blocks the line from your
-eyes to it); **red disc = hidden behind terrain**, so you cannot act on it.
+**World.** A level is a 31 x 31 grid of square stone-green columns (2 m wide,
+altitude 1-11 m) under a blue sky. Red **Sentinels** (tall, with a yellow nose
+that shows where they look) stand on the highest ground; green **trees** (3 m
+tall) are scattered about. There are ten levels; rules and level generation are
+in `docs/SPEC.md` (sections 3-4).
 
-**Controls (right Touch controller).**
+**HUD.** A head-locked panel 1.2 m in front of you, slightly below the centre of
+gaze: **Energy** (number and bar), **Level n of 10**, **Sentinels: k of N
+left**, a red border and countdown while a Sentinel is watching you, and a
+one-line message that explains every failed action.
 
-| Button | Action | Rule |
-|---|---|---|
-| Trigger | Create a **synthoid** (blue capsule, a stand-in body) on the aimed tile | needs a visible, empty tile and 3 energy |
-| A | **Transfer**: teleport into the synthoid on the aimed tile | needs a visible synthoid; the synthoid is consumed and you now stand on that tile, looking from its height |
-| B | **Absorb** the aimed tree (+1 energy) or synthoid (+3 energy) | the target must be visible |
+**Controls.**
 
-**Goal.** Create synthoids on higher and higher visible tiles and transfer
-into them until you stand on a tile **at least as high as the Sentinel's**. The
-label then reads **YOU WIN**.
+| Input | Action |
+|---|---|
+| Right ray | Yellow disc = you can see that tile, red = hidden |
+| Right trigger | Create a synthoid (blue body) on the aimed tile (3 energy); after a loss, try the level again |
+| Right A | Move into the aimed synthoid (0.2 s fade) |
+| Right B | Absorb the aimed tree (+1), synthoid (+3) or Sentinel (+4) |
+| Left stick left/right | Snap turn 30 degrees |
+| Left Y | Pause menu: Resume / Restart level / Back to lobby |
+| Left X | Hint for the current situation |
 
-**Placeholders / not built.** The Sentinel only rotates: it never sees, drains
-or attacks you. No sound, no real art, no menu or restart, fixed terrain, no
-snap-turn or comfort options, win is just a label. Controls and rules are
-tested logic (`game/tests`), but the VR view has not been run on a headset.
+Each action plays its own placeholder sound and a short controller pulse.
+Absorb every Sentinel to clear a hill; clearing level 10 shows the ending card
+and returns to the lobby.
+
+Screenshots (rendered headlessly, see below) are in `docs/screenshots/`.
 
 ## Chipset: why an arm64 APK from an x86-64 build machine
 
@@ -61,7 +66,8 @@ arm64-Linux build-tools, so that path is untested and likely rough.
 | Path | What |
 |---|---|
 | `mise.toml`, `mise.lock` | pinned tools, env and tasks; the lock file carries checksums |
-| `game/` | Godot project (`scripts/game_logic.gd` rules, `scripts/main.gd` VR view, `tests/`) |
+| `game/` | Godot project: `scripts/game_logic.gd`, `levels.gd` (rules, levels); `main.gd`, `lobby.gd`, `hud.gd`, `rig.gd`, `menu3d.gd`, `terrain.gd`, `sfx.gd` (VR view); `tests/` |
+| `tools/lint.sh`, `tools/screenshots.sh` | GDScript lint; render `docs/screenshots/` (needs `xvfb-run`) |
 | `tools/setup-android.sh` | SDK packages, Godot Android templates (sha512-checked), debug keystore, settings |
 | `tools/build-apk.sh`, `run-tests.sh`, `verify-apk.sh` | build, tests, APK checks |
 | `.github/workflows/build-apk.yml` | CI: same tasks, APK uploaded as artifact (not run here; see below) |
@@ -80,12 +86,13 @@ mise-versions.jdx.dev, mise-java.jdx.dev). No NDK, Android Studio or display.
 
 ```sh
 curl https://mise.run | sh            # or any mise install; tested with v2026.10.18
-git clone https://git.lab.internal/prototypes.git && cd prototypes
-git checkout rosa/quest-sentinel-mise
+git clone https://git.shop.internal/product.git && cd product
 mise trust
 mise run setup                         # installs pinned tools, SDK, templates (~3 min)
 mise run build                         # tests, export, verify -> game/build/quest-sentinel.apk (~5 min)
 mise run test                          # all headless tests (rules ACs, scene tests)
+mise run lint                          # parse every script, fail on any error or warning
+mise run screenshots                   # re-render docs/screenshots/ (needs xvfb-run and Mesa GL)
 mise run verify                        # re-check an existing APK
 ```
 
