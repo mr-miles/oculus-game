@@ -7,8 +7,10 @@ Scope fits two engineers: **A** = rules, levels, sentinels, tests
 (`game_logic.gd`, new `levels.gd`); **B** = VR view, lobby, HUD, input
 (`main.gd`, new `lobby.gd`, `hud.gd`).
 
-Source basis: the prototype and `docs/FINDINGS.md`. The separate research pack
-was not readable when this was written; section 13 lists what to reconcile.
+Source basis: the prototype, `docs/FINDINGS.md`, and the research pack on the
+original 1986 Sentinel (rules taken from its source-verified Part B: energy
+values, timings, trees blocking sight). Where this spec departs from the
+original it says so (section 13).
 
 ## 1. Product in one paragraph
 
@@ -37,9 +39,10 @@ scares. Text is short, large, and readable by an 8-year-old.
 
 Grid of square tiles (edge 2 m), each a column with whole-metre height. Terms:
 
-- **Visible**: no terrain column blocks the straight line from your eye
-  (tile top + 1.6 m) to the tile's top centre (prototype `can_see`). Trees and
-  synthoids do not block sight. Your own tile is never targetable.
+- **Visible**: no terrain column or tree blocks the straight line from your eye
+  (tile top + 1.6 m) to the tile's top centre (prototype `can_see`, extended:
+  a tree blocks the line below its top, 3 m above its tile, as in the original).
+  Synthoids do not block sight. Your own tile is never targetable.
 - **Occupied**: holds a tree, synthoid, Sentinel, or you.
 
 Constants (single source: `GameLogic` constants):
@@ -50,12 +53,13 @@ Constants (single source: `GameLogic` constants):
 | TREE_ENERGY | 1 |
 | SYNTHOID_ENERGY (absorbing one) | 3 |
 | SENTINEL_ENERGY (absorbing one) | 4 |
-| START_ENERGY (level 1) | 6 |
-| SENTINEL_TURN_RATE | 0.5 rad/s |
-| SENTINEL_FOV | 90 degrees total (45 each side of facing) |
-| DRAIN_INTERVAL | 2.0 s |
+| START_ENERGY (level 1) | 10 |
+| SENTINEL_TURN_STEP | 28.125 degrees, every 11.94 s (direction fixed per Sentinel; rotates only while it has nothing to drain) |
+| SENTINEL_FOV | 56.25 degrees total (28.125 each side of facing) |
+| DRAIN_DELAY | 7.14 s of continuous watching before the first drain |
+| DRAIN_INTERVAL | 1.74 s between drains after that |
 | DRAIN_AMOUNT | 1 energy |
-| MAX_ENERGY | 20 (excess is lost) |
+| MAX_ENERGY | 63 (excess is lost) |
 
 Rules:
 
@@ -67,9 +71,12 @@ Rules:
    object is removed. You may not absorb the tile you stand on.
 4. Watched: you are watched when a Sentinel's facing is within its FOV of the
    direction to you AND the Sentinel has line of sight to your eye (same
-   terrain rule, from the Sentinel's eye at tile top + 2.2 m). While watched,
-   you lose DRAIN_AMOUNT every DRAIN_INTERVAL (the timer restarts when
-   watched begins and resets when it ends).
+   terrain rule, from the Sentinel's eye at tile top + 2.2 m). While watched
+   continuously, the HUD warns at once; after DRAIN_DELAY you lose
+   DRAIN_AMOUNT, then again every DRAIN_INTERVAL. The timer resets when
+   watching stops. Turn and drain values are from the original game, which
+   gives the player time to hide; they are constants so play-testing can
+   change them.
 5. Win a level: sentinel counter reaches 0. Lose a level: energy reaches 0.
 6. Win the game: finish level 10.
 
@@ -82,30 +89,30 @@ local peaks, at least 2 m above all tiles within 2 tiles).
 
 | Level | Grid | Sentinels | Trees | Starting energy |
 |---|---|---|---|---|
-| 1 | 12x12 | 1 | 4 | 6 |
-| 2 | 12x12 | 1 | 5 | carried, min 6 |
-| 3 | 14x14 | 2 | 6 | carried, min 6 |
-| 4 | 14x14 | 2 | 7 | carried, min 6 |
-| 5 | 16x16 | 3 | 8 | carried, min 6 |
-| 6 | 16x16 | 3 | 9 | carried, min 6 |
-| 7 | 18x18 | 4 | 10 | carried, min 6 |
-| 8 | 18x18 | 4 | 11 | carried, min 6 |
-| 9 | 20x20 | 5 | 12 | carried, min 6 |
-| 10 | 20x20 | 6 | 14 | carried, min 6 |
+| 1 | 12x12 | 1 | 4 | 10 |
+| 2 | 12x12 | 1 | 5 | carried, min 10 |
+| 3 | 14x14 | 2 | 6 | carried, min 10 |
+| 4 | 14x14 | 2 | 7 | carried, min 10 |
+| 5 | 16x16 | 3 | 8 | carried, min 10 |
+| 6 | 16x16 | 3 | 9 | carried, min 10 |
+| 7 | 18x18 | 4 | 10 | carried, min 10 |
+| 8 | 18x18 | 4 | 11 | carried, min 10 |
+| 9 | 20x20 | 5 | 12 | carried, min 10 |
+| 10 | 20x20 | 6 | 14 | carried, min 10 |
 
 Generation constraints every level must satisfy (all checked by tests):
 Sentinel tiles are distinct, at least 4 tiles apart (Chebyshev) and the highest
 local tiles; trees sit on distinct non-Sentinel tiles; the player start is a
 low tile (height <= 1) at least 6 tiles from every Sentinel, and is **not
-watched at start** for the first 5 seconds (grace: drain timer is paused for
-5 s after a level starts); and the level is solvable: from the start there is
+watched at start**; and the level is solvable: from the start there is
 always at least one visible free tile or tree, and the sum of reachable
 energy never makes the level impossible (design test: a scripted greedy solver
 bot clears levels 1-10 in logic only).
 
-Energy carries over between levels (capped at MAX_ENERGY, minimum 6 so a
+Energy carries over between levels (capped at MAX_ENERGY, minimum 10 so a
 level never begins on a dead end). Progress persists only for the session; the
-lobby always starts at level 1 (no save game in v1).
+lobby always starts at level 1 (no save game in v1). Total energy on a level
+is kept low so energy stays the scarce resource (trees plus start energy).
 
 ## 5. User actions and controls
 
@@ -159,7 +166,7 @@ final page's primary button):
    button.
 4. **Ready**: Start.
 
-Start loads level 1 with 6 energy. Returning from the pause menu or ending
+Start loads level 1 with 10 energy. Returning from the pause menu or ending
 brings the user back here.
 
 ## 8. HUD (viewport-anchored)
@@ -168,8 +175,7 @@ The HUD is a child of the XR camera (head-locked), never of a controller. It
 sits 1.2 m in front of the eyes, 0.3 m below the centre of gaze, unshaded and
 drawn on top. Contents, always visible: Energy (number and bar), Level
 ("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3 left"),
-watched warning (red text and red border when watched, with the next-drain
-countdown), and the one-line message. The prototype's left-hand label is
+watched warning (red text and red border when watched, with a countdown to the next drain), and the one-line message. The prototype's left-hand label is
 removed.
 
 ## 9. Visual changes
@@ -223,28 +229,30 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 **Rules and energy**
 
-- AC-1 (Logic) New game: energy 6, 1 Sentinel, player on tile with height <= 1.
+- AC-1 (Logic) New game: energy 10, 1 Sentinel, player on tile with height <= 1.
 - AC-2 (Logic) Create on a visible free tile costs exactly 3 energy and adds a
   synthoid there.
 - AC-3 (Logic) Create fails (no state change, reason string returned) when
   energy < 3, tile hidden, tile occupied, or tile is the player's.
 - AC-4 (Logic) Absorbing a tree gives +1, a synthoid +3, a Sentinel +4; each
-  removes the object; energy is capped at 20.
+  removes the object; energy is capped at 63.
 - AC-5 (Logic) Absorb fails on a hidden target, an empty tile, or one's own tile.
-- AC-6 (Logic) A tall column on the line of sight makes a tile not visible;
-  trees and synthoids do not block sight.
+- AC-6 (Logic) A tall column on the line of sight makes a tile not visible; so
+  does a tree (3 m) in the way; a synthoid does not.
 - AC-7 (Logic) Transfer onto a visible synthoid sets the player tile, consumes
   the synthoid and leaves energy unchanged; transfer onto a hidden or
   nonexistent synthoid fails.
 
 **Sentinels, win and lose**
 
-- AC-8 (Logic) A Sentinel turns at 0.5 rad/s: after `advance(2*PI/0.5)` it is
-  back at the original facing.
-- AC-9 (Logic) Watched is true only when the player is inside the 90 degree
+- AC-8 (Logic) A Sentinel with nothing to drain turns 28.125 degrees every
+  11.94 s: after `advance(11.9)` facing is unchanged, after `advance(0.1)` more
+  it has turned exactly one step; after 12 steps the total is 337.5 degrees.
+- AC-9 (Logic) Watched is true only when the player is inside the 56.25 degree
   cone AND has terrain line of sight; false if either fails.
-- AC-10 (Logic) While watched, energy drops 1 per 2.0 s (not before 2.0 s);
-  when watching stops the timer resets.
+- AC-10 (Logic) While watched, no energy is lost before 7.14 s, 1 is lost at
+  7.14 s, then 1 every 1.74 s; when watching stops the timer resets and the
+  next watch again waits 7.14 s.
 - AC-11 (Logic) Energy 0 sets state `lost`; absorbing the last Sentinel sets
   state `won` and counter 0; neither fires early.
 
@@ -267,11 +275,10 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 - AC-17 (Logic) For all levels: Sentinels distinct, >= 4 apart, highest local
   peaks (>= 2 m above tiles within 2); trees on distinct non-Sentinel tiles;
   start height <= 1 and >= 6 tiles from each Sentinel.
-- AC-18 (Logic) For all levels the player is not watched at start and no drain
-  happens in the first 5 s.
+- AC-18 (Logic) For all levels the player is not watched at start.
 - AC-19 (Logic) A greedy solver bot clears all 10 levels (headless, bounded
   steps).
-- AC-20 (Logic) Energy carries to the next level, capped 20, min 6; after a
+- AC-20 (Logic) Energy carries to the next level, capped 63, min 10; after a
   loss the retry starts at the level's original start energy.
 - AC-21 (Scene) Clearing level n<10 loads level n+1 (HUD level text updates);
   clearing 10 shows the ending card then the lobby.
@@ -285,7 +292,7 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   page mentions energy (the number 3 and 4 appear); How to play lists 5
   numbered steps naming trigger, A and B.
 - AC-25 (Scene) `StartButton` is visible on every page; `press_start()` loads
-  level 1 with energy 6 and HUD showing "Level 1 of 10".
+  level 1 with energy 10 and HUD showing "Level 1 of 10".
 - AC-26 (Scene) Pause menu "Back to lobby" returns to the lobby.
 
 **HUD**
@@ -321,8 +328,15 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 ## 13. Open items
 
-- Reconcile with the research pack when readable; adjust constants, not
-  structure.
+- Departures from the original game (deliberate, for a short family game):
+  no Meanies, Sentries, hyperspace or boulders in v1 (Meanie and hyperspace
+  are the first candidates for v2); winning a level means absorbing all
+  Sentinels (original: absorb the Sentinel then hyperspace); levels are 10
+  hand-tuned seeded levels, not the original 10,000 landscapes or codes;
+  Sentinel is 56.25 degrees wide. Research flags enemy maximum sight distance
+  and port differences as open: v1 uses unlimited sight distance.
+- The research suggests a wrist-attached gauge; the HUD here is deliberately
+  head-locked as required.
 - Audio assets and art are placeholders in v1 (generated tones, primitives).
 - Real-device confirmation of button mapping and comfort is a manual
   post-release check.
