@@ -42,6 +42,18 @@ hide = true
 description = "Headless logic tests and scene smoke test"
 run = "tools/run-tests.sh"
 
+[tasks.lint]
+description = "Parse every GDScript file; fail on any error or warning"
+run = "tools/lint.sh"
+
+[tasks.names]
+description = "AC-38 gate: fail if any name from $NAMES_FILE (a list kept outside the repo) appears in the repo"
+run = "tools/check-names.sh \"${NAMES_FILE:?set NAMES_FILE to the names list}\""
+
+[tasks.screenshots]
+description = "Render docs/screenshots/ from the real scenes (needs xvfb-run)"
+run = "tools/screenshots.sh"
+
 [tasks.build]
 description = "Tests, then export the debug-signed APK to game/build/quest-sentinel.apk"
 run = "tools/build-apk.sh debug"

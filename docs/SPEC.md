@@ -414,31 +414,31 @@ fill the test file and test function when the test is written.
 | AC-9 | `test_ac_logic.gd` | `ac_9_watched` |
 | AC-10 | `test_ac_logic.gd` | `ac_10_drain_timing` |
 | AC-11 | `test_ac_logic.gd` | `ac_11_win_lose` |
-| AC-12 | | |
-| AC-13 | | |
-| AC-14 | | |
-| AC-15 | | |
+| AC-12 | `test_ac_12_move_origin.gd` | `ac_12 ...` PASS lines |
+| AC-13 | `test_ac_13_move_camera.gd` | `ac_13 ...` PASS lines |
+| AC-14 | `test_ac_14_move_fails.gd` | `ac_14 ...` PASS lines |
+| AC-15 | `test_ac_15_snap_turn.gd` | `ac_15 ...` PASS lines |
 | AC-16 | `test_ac_logic.gd` | `ac_16_levels_match_table` |
 | AC-17 | `test_ac_logic.gd` | `ac_17_level_constraints` |
 | AC-18 | `test_ac_logic.gd` | `ac_18_sentinels_idle_until_first_action` |
 | AC-19 | `test_ac_logic.gd` | `ac_19_solver_bot_clears_all` |
 | AC-20 | `test_ac_logic.gd` | `ac_20_energy_carry_and_retry` |
-| AC-21 | | |
-| AC-22 | | |
-| AC-23 | | |
-| AC-24 | | |
-| AC-25 | | |
-| AC-26 | | |
-| AC-27 | | |
-| AC-28 | | |
-| AC-29 | | |
-| AC-30 | | |
-| AC-31 | | |
-| AC-32 | | |
-| AC-33 | | |
-| AC-34 | | |
-| AC-35 | | |
-| AC-36 | | |
+| AC-21 | `test_ac_21_level_flow.gd` | `ac_21 ...` PASS lines |
+| AC-22 | `test_ac_22_launch_is_lobby.gd` | `ac_22 ...` PASS lines |
+| AC-23 | `test_ac_23_lobby_pages.gd` | `ac_23 ...` PASS lines |
+| AC-24 | `test_ac_24_lobby_text.gd` | `ac_24 ...` PASS lines |
+| AC-25 | `test_ac_25_start.gd` | `ac_25 ...` PASS lines |
+| AC-26 | `test_ac_26_pause_to_lobby.gd` | `ac_26 ...` PASS lines |
+| AC-27 | `test_ac_27_hud_headlocked.gd` | `ac_27 ...` PASS lines |
+| AC-28 | `test_ac_28_hud_position.gd` | `ac_28 ...` PASS lines |
+| AC-29 | `test_ac_29_hud_energy.gd` | `ac_29 ...` PASS lines |
+| AC-30 | `test_ac_30_hud_sentinels.gd` | `ac_30 ...` PASS lines |
+| AC-31 | `test_ac_31_hud_watched.gd` | `ac_31 ...` PASS lines |
+| AC-32 | `test_ac_32_no_hand_label.gd` | `ac_32 ...` PASS lines |
+| AC-33 | `test_ac_33_big_trees.gd` | `ac_33 ...` PASS lines |
+| AC-34 | `test_ac_34_aim_tree_tile.gd` | `ac_34 ...` PASS lines |
+| AC-35 | `test_ac_35_sentinel_facing.gd` | `ac_35 ...` PASS lines |
+| AC-36 | `test_ac_36_feedback.gd` | `ac_36 ...` PASS lines |
 | AC-37 | | |
-| AC-38 | | |
-| AC-39 | | |
+| AC-38 | `test_ac_38_names_gate.gd`, `tools/check-names.sh` | `ac_38 ...` PASS lines |
+| AC-39 | `test_ac_39_terrain_meshes.gd` | `ac_39 ...` PASS lines |
