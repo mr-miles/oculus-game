@@ -131,9 +131,11 @@ and `./.toolchain` (SDK, Gradle cache, Godot templates and settings); delete bot
 to start clean. The APK is **debug-signed** (a throwaway key made by setup) —
 fine for `adb install`, not for any store.
 
-Behind a TLS-inspecting proxy, Java ignores the system CA store. Optionally set
-`EXTRA_CA_CERT=/path/ca.pem` when running `mise run setup`; it is added to the
-mise-managed JDK's trust store. Without the variable nothing is touched.
+Behind a TLS-inspecting proxy, Java ignores the system CA store, and without the
+CA `mise run build` fails at the export step with "PKIX path building failed".
+Set `EXTRA_CA_CERT=/path/ca.pem` when running `mise run setup` (re-running setup
+is safe); it is added to the
+mise-managed JDK's trust store. Without the variable nothing is touched (fine on a network without TLS inspection).
 
 ## CI
 
