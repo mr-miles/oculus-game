@@ -313,8 +313,13 @@ pulse (success 0.2 s / failure 0.05 s).
 ## 7. Lobby
 
 A separate scene `lobby.tscn` shown on app launch, before any level. A calm
-sky, one low hill, a world-space panel 2 m in front of the player at eye
-height, interacted with by the same ray + trigger. Pages, with **Back** and
+sky, one low hill, a world-space panel placed once, 2.5 m in front of where the
+player is facing when the lobby loads (taken from the camera's own yaw, after
+head tracking has settled, so it is right whatever yaw the headset starts
+with), at eye height, turned to face the player, scaled 1.4x (2.8 x 2.1 m, about
+58 x 45 degrees of view, so every line reads without turning the head), and
+then fixed in the world: it never follows head movement. It is interacted with
+by the same ray + trigger. Pages, with **Back** and
 **Next** buttons, and a **Start** button visible on every page (also the
 final page's primary button):
 
@@ -637,6 +642,14 @@ steps). AC-57 now also guarantees that sloped tiles exist.
 - AC-69 (Build) `README.md` World paragraph mentions "slopes" or "sloping" and
   "flat" (grep gate in `tools/check-test-gate.sh`), and no longer says "columns".
 
+*Lobby placement (board finding)*
+
+- AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
+  horizontal forward direction, 2.0 to 3.5 m away, at eye height and facing the
+  player; it does not move when the camera or the rig yaws afterwards; and
+  placing it again from any rig yaw (90, 180, -137 degrees) puts it in front of
+  the camera.
+
 Known simplification (kept from the prototype): visibility tests only whether
 terrain or a tree blocks the line to a tile's top centre; the target tile's
 own surface never blocks. A Sentinel standing higher than the player is
@@ -772,3 +785,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-67 | `test_ac_67_terrain_colours.gd` | `ac_67 ...` PASS lines |
 | AC-68 | `test_ac_68_move_flat_height.gd` | `ac_68 ...` PASS lines |
 | AC-69 | `tools/check-test-gate.sh` (`mise run test-gate`) | `README GATE OK` line |
+| AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |

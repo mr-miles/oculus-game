@@ -10,7 +10,7 @@ plugin 5.1.0 (Meta flavour), Gradle build, arm64-v8a. Toolchain pinned with
 
 ## What the app does (what you see and do in the headset)
 
-**Lobby.** The app starts in a calm lobby: a panel two metres in front of you
+**Lobby.** The app starts in a calm lobby: a large panel 2.5 metres in front of where you face at start (fixed in the world, never following your head)
 with four pages (Story, Rules, How to play with a controller sketch, Ready).
 Point the right controller at **Back**, **Next** or **Start** and pull the
 trigger. **Start** is on every page and loads level 1.

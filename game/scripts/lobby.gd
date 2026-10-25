@@ -10,10 +10,19 @@ const PAGES := [
 ]
 const HOW_TO_PAGE := 2
 const PANEL_SIZE := Vector2(2.0, 1.5)
+## The panel is 2.5 m away (a comfortable VR focus distance) and scaled 1.4x, so
+## it is 2.8 x 2.1 m: about 58 x 45 degrees of view, every line readable
+## without turning the head, and text 1.4x taller than at 2 m.
+const PANEL_DISTANCE := 2.5
+const PANEL_SCALE := 1.4
+const SETTLE_FRAMES := 30  ## in a headset, wait this long for head tracking before placing the panel
 
 var rig: Rig
 var panel: Menu3D
 var page := 0
+var placed := false
+
+var _frames := 0
 
 var _title: Label3D
 var _body: Label3D
@@ -29,6 +38,21 @@ func _ready() -> void:
 	rig.button.connect(_on_button)
 	_build_panel()
 	_show_page()
+	if not rig.xr_active:
+		place_panel()  # no head tracking to wait for
+
+
+func place_panel() -> void:
+	## Put the panel in front of where the player is looking now, at eye height,
+	## facing them, and leave it fixed in the world. Uses the camera's yaw, not the
+	## origin's axes, so it is right whatever yaw the headset starts with.
+	var cam := rig.camera.global_transform
+	var forward := Vector3(-cam.basis.z.x, 0, -cam.basis.z.z)
+	forward = forward.normalized() if forward.length() > 0.001 else Vector3(0, 0, -1)
+	var at := Vector3(cam.origin.x, cam.origin.y, cam.origin.z) + forward * PANEL_DISTANCE
+	panel.look_at_from_position(at, at + forward, Vector3.UP)  # -z points away, so the front (+z) faces the player
+	panel.visible = true
+	placed = true
 
 
 func _hill_mesh() -> SphereMesh:
@@ -41,7 +65,8 @@ func _hill_mesh() -> SphereMesh:
 func _build_panel() -> void:
 	panel = Menu3D.new(PANEL_SIZE)
 	panel.name = "LobbyPanel"
-	panel.position = Vector3(0, GameLogic.EYE, -2.0)
+	panel.scale = Vector3.ONE * PANEL_SCALE
+	panel.visible = false
 	add_child(panel)
 	_title = panel.add_label("LobbyTitle", Vector2(0, 0.64), 80)
 	_body = panel.add_label("LobbyPage", Vector2(-0.95, 0.52), 38, 780)  # left edge, top
@@ -127,6 +152,12 @@ func _on_button(button: String) -> void:
 
 
 func _process(_delta: float) -> void:
+	if not placed:
+		_frames += 1
+		if not rig.xr_active or (_frames >= SETTLE_FRAMES and rig.camera.position.length() > 0.01):
+			place_panel()
+		else:
+			return
 	var id := panel.pick(rig.ray_origin(), rig.ray_direction())
 	panel.highlight(id)
 	rig.set_ray_length(2.0 if id != "" else 3.0)

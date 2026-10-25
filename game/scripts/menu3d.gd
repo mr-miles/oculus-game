@@ -83,7 +83,7 @@ func pick(ray_origin: Vector3, ray_direction: Vector3) -> String:
 	var p := o + d * s
 	for id in _buttons:
 		var entry: Dictionary = _buttons[id]
-		if entry.node.visible and entry.rect.has_point(Vector2(p.x, p.y)):
+		if entry.node.is_visible_in_tree() and entry.rect.has_point(Vector2(p.x, p.y)):
 			return id
 	return ""
 
@@ -95,5 +95,5 @@ func highlight(id: String) -> void:
 
 
 func activate(id: String) -> void:
-	if _buttons.has(id) and _buttons[id].node.visible:
+	if _buttons.has(id) and _buttons[id].node.is_visible_in_tree():
 		chosen.emit(id)
