@@ -654,6 +654,15 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
+*Sky and sun (board finding)*
+
+- AC-76 (Scene) The lobby and every level use a shader sky (`scripts/sky.gdshader`:
+  blue gradient, soft clouds that drift with `TIME`, a sun disc where the light
+  points) that re-renders every frame, and a `Sun` DirectionalLight3D with
+  shadows on (one orthogonal cascade, 80 m, 2048 atlas: the Quest 2 budget), so
+  trees, Sentinels, synthoids and boulders cast shadows on the terrain. Tests
+  check the setup; how it looks and runs on a Quest 2 is not measured.
+
 *Lobby placement (board finding)*
 
 - AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
@@ -807,4 +816,5 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
+| AC-76 | `test_ac_76_sky_and_sun.gd` | `ac_76 ...` PASS lines |
 | AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |
