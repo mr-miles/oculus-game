@@ -1,10 +1,13 @@
 class_name Hud
 extends Node3D
-## Head-locked heads-up display. Add as a child of the XR camera. Shows energy
+## Head-locked heads-up display, 2.5 m ahead and large enough to read. Add as a child of the XR camera. Shows energy
 ## (number and bar), level, sentinels left, a watched warning and one message.
 ## Label3D anchors left-aligned text at its left edge and right-aligned at its right edge.
 
 const PIXEL := 0.0012
+const DISTANCE := 2.5      # metres in front of the eyes (was 1.2: too close to read)
+const HEIGHT := 0.9        # metres above the gaze line (about 20 degrees up, as before)
+const HUD_SCALE := 2.7     # the layout below is in 1.2 m units; this makes it about 1.3x larger on screen
 const BAR_WIDTH := 0.3
 const BAR_X := -0.17
 const WATCH_RED := Color(1, 0.2, 0.2)
@@ -21,7 +24,8 @@ var _border: Node3D
 
 func _init() -> void:
 	name = "Hud"
-	position = Vector3(0, 0.45, -1.2)
+	position = Vector3(0, HEIGHT, -DISTANCE)
+	scale = Vector3.ONE * HUD_SCALE
 	level_label = _label("HudLevel", Vector2(-0.55, 0.15), HORIZONTAL_ALIGNMENT_LEFT)
 	sentinels_label = _label("HudSentinels", Vector2(0.55, 0.15), HORIZONTAL_ALIGNMENT_RIGHT)
 	energy_label = _label("HudEnergy", Vector2(-0.55, 0.07), HORIZONTAL_ALIGNMENT_LEFT)

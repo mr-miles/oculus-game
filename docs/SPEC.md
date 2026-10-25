@@ -339,8 +339,9 @@ brings the user back here.
 ## 8. HUD (viewport-anchored, at the top)
 
 The HUD is a child of the XR camera (head-locked), never of a controller. It is
-a strip at the **top** of the view: centred 1.2 m in front of the eyes and 0.45 m
-above the centre of gaze (about 20 degrees up), unshaded and drawn on top, so the
+a strip at the **top** of the view: centred 2.5 m in front of the eyes and 0.9 m
+above the centre of gaze (about 20 degrees up), scaled so it looks about 1.3x larger than
+the first version (which sat 1.2 m away and was too close to read), unshaded and drawn on top, so the
 middle of the view stays clear. Contents, always visible: Energy (number and
 bar), Level ("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3
 left"), the create mode ("Create: Synthoid (3)" / "Create: Boulder (2)"), the
@@ -487,8 +488,9 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 - AC-27 (Scene) `Hud` is a descendant of `XRCamera3D` and not of either controller;
   its local transform is constant while the camera moves.
-- AC-28 (Scene) `Hud` local position is (0, +0.45 +- 0.05, -1.2 +- 0.1), i.e. above
-  the gaze centre, not below or at it.
+- AC-28 (Scene) `Hud` local position is (0, +0.9 +- 0.05, -2.5 +- 0.1), i.e. above
+  the gaze centre, not below or at it, and its on-screen size (scale / distance) is
+  at least 1.25 / 1.2 (board finding: larger and further).
 - AC-29 (Scene) HUD text shows energy as a number that updates after create
   and absorb.
 - AC-30 (Scene) `HudSentinels` reads "Sentinels: k of N left" and decrements
@@ -532,8 +534,9 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 *HUD*
 
 - AC-42 (Scene) `HudEnergy`, `HudLevel`, `HudSentinels`, `HudMode`, `HudWatched`
-  and `HudMessage` each have camera-local y between +0.25 and +0.65 m (at
-  z = -1.2) and |x| <= 0.8 m: all above the gaze line and inside the view.
+  and `HudMessage` each have camera-local y between +0.5 and +1.5 m (at
+  z = -2.5), |x| <= 1.6 m, and between 5 and 35 degrees up and under 35 degrees
+  to the side: all above the gaze line and inside the view.
 - AC-52 (Scene) `HudMode` reads "Create: Synthoid (3)" at level start and after
   a retry, and "Create: Boulder (2)" after one `press("grip_click")`.
 

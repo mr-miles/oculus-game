@@ -8,7 +8,10 @@ func _init() -> void:
 		var node: Node3D = g.find_child(n, true, false)
 		check("ac_42 %s exists" % n, node != null)
 		var p := cam.global_transform.affine_inverse() * node.global_position
-		check("ac_42 %s local y in 0.25..0.65 (%.2f)" % [n, p.y], p.y >= 0.25 and p.y <= 0.65)
-		check("ac_42 %s |x| <= 0.8" % n, absf(p.x) <= 0.8)
-		check("ac_42 %s at z = -1.2" % n, absf(p.z + 1.2) <= 0.1)
+		check("ac_42 %s local y in 0.5..1.5 (%.2f)" % [n, p.y], p.y >= 0.5 and p.y <= 1.5)
+		check("ac_42 %s |x| <= 1.6" % n, absf(p.x) <= 1.6)
+		check("ac_42 %s at z = -2.5" % n, absf(p.z + 2.5) <= 0.1)
+		var up := rad_to_deg(atan2(p.y, -p.z))
+		var side := rad_to_deg(atan2(absf(p.x), -p.z))
+		check("ac_42 %s above gaze and inside the view (%.0f up, %.0f side)" % [n, up, side], up > 5.0 and up < 35.0 and side < 35.0)
 	finish()
