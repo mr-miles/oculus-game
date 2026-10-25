@@ -38,7 +38,7 @@ explains every failed action.
 | Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 1.0 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
 | Right grip | Switch the create mode Synthoid <-> Boulder (shown on the HUD; a translucent ghost shows what you will make) |
 | Right A | Move into the aimed synthoid (0.2 s fade) |
-| Right B | Absorb the top object of the aimed tile: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4) |
+| Left trigger | Absorb the top object of the tile the left (orange) ray aims at: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4). Right hand makes and moves, left hand absorbs |
 | Left stick left/right | Snap turn 30 degrees |
 | Left Y | Pause menu in front of you, fixed in the world: Resume / Restart level / Back to lobby |
 | Left X | Hint for the current situation |

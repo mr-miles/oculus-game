@@ -12,6 +12,6 @@ func _init() -> void:
 	g.aim_at(t)
 	g.press("trigger_click")
 	check("ac_29 drops by 3 after create", _shown(g) == g.logic.energy and g.logic.energy == 7)
-	g.press("by_button")
+	g.press("trigger_left_click")
 	check("ac_29 rises by 3 after absorbing the body", _shown(g) == g.logic.energy and g.logic.energy == 10)
 	finish()

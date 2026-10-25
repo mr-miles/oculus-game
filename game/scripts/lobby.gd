@@ -5,8 +5,8 @@ extends Node3D
 const PAGES := [
 	{"title": "The Story", "body": "The Quiet Valley once hummed with light. The Sentinels grew fearful and hoarded it, and the valley dimmed.\n\nYou are a Spark, the last small light that slipped past them. Grow bodies, slip from one into another, climb above each Sentinel and gather its light gently.\n\nThe hill glows again."},
 	{"title": "The Rules", "body": "You are a Spark with energy.\n\n- A body (synthoid) costs 3 energy, a boulder 2.\n- Absorbing gives back: tree 1, boulder 2, body 3, Sentinel 4.\n- You can only act on tiles you can see.\n- A Sentinel that sees you slowly drains your energy. Hide behind hills!\n- Absorb every Sentinel to clear a hill. If you run dry and are drained again, try again."},
-	{"title": "How to Play", "body": "1. Point your right controller. Yellow means you can see the tile.\n2. Pull the TRIGGER to make a blue body (costs 3).\n3. Press A to move into that body.\n4. Squeeze the GRIP to switch to boulders (cost 2), then pull the trigger to stack them and climb.\n5. Press B to absorb trees, boulders and bodies for energy.\n6. Climb higher, then press B on each Sentinel to absorb it."},
-	{"title": "Ready?", "body": "Point at Start and pull the trigger.\n\nLeft stick turns you. Left Y pauses. Left X gives a hint."},
+	{"title": "How to Play", "body": "1. Point your right controller. Yellow means you can see the tile.\n2. Pull the TRIGGER to make a blue body (costs 3).\n3. Press A to move into that body.\n4. Squeeze the GRIP to switch to boulders (cost 2), then pull the trigger to stack them and climb.\n5. Point your LEFT controller (orange ray) and pull its TRIGGER to absorb trees, boulders and bodies for energy.\n6. Climb higher, then absorb each Sentinel the same way."},
+	{"title": "Ready?", "body": "Point at Start and pull the trigger.\n\nRight hand: make and move. Left hand: absorb. Left stick turns you. Left Y pauses. Left X gives a hint."},
 ]
 const HOW_TO_PAGE := 2
 const PANEL_SIZE := Vector2(2.0, 1.5)
@@ -92,7 +92,6 @@ func _build_diagram() -> Node3D:
 	d.add_child(Scenery.mesh_node("Body", body, Color(0.25, 0.25, 0.3), Vector3.ZERO))
 	var spots := {"Trigger": [Vector3(-0.15, -0.12, 0.0), Color(0.9, 0.9, 0.3)],
 			"A": [Vector3(0.0, 0.14, 0.04), Color(0.3, 0.8, 0.4)],
-			"B": [Vector3(0.0, 0.04, 0.04), Color(0.9, 0.5, 0.3)],
 			"Grip": [Vector3(-0.15, -0.02, 0.0), Color(0.6, 0.6, 0.9)]}
 	for k in spots:
 		var s := SphereMesh.new()
@@ -105,7 +104,7 @@ func _build_diagram() -> Node3D:
 		l.pixel_size = Menu3D.PIXEL
 		l.no_depth_test = true
 		l.render_priority = 2
-		l.position = spots[k][0] + Vector3(0.14 if k in ["A", "B"] else -0.14, 0, 0.03)
+		l.position = spots[k][0] + Vector3(0.14 if k == "A" else -0.14, 0, 0.03)
 		d.add_child(l)
 	return d
 

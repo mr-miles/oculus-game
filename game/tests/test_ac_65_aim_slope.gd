@@ -16,7 +16,7 @@ func _init() -> void:
 	var energy: int = g.logic.energy
 	var trees: int = g.logic.trees.size()
 	var tile: Vector2i = g.logic.player_tile
-	for button in ["trigger_click", "ax_button", "by_button"]:
+	for button in ["trigger_click", "ax_button", "trigger_left_click"]:
 		(g.find_child("HudMessage", true, false) as Label3D).text = ""
 		g.press(button)
 		check("ac_65 %s says Needs flat ground" % button, (g.find_child("HudMessage", true, false) as Label3D).text.contains("Needs flat ground"))
