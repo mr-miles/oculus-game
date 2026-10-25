@@ -708,6 +708,13 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   orange for the left) are shown on flat tiles only; on sloped land there is no
   circle (the ray remains and a trigger press still says "Needs flat ground").
 
+*Energy bar (bug)*
+
+- AC-81 (Scene) The green energy-bar fill is drawn on top of its dark back
+  (higher render priority, a hair in front; both ignore depth, so draw order
+  decides) and so is visible at every energy above 0; it grows with energy, and the
+  bar sits between the "Energy nn" text and the create-mode text without overlapping either.
+
 *Lobby placement (board finding)*
 
 - AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
@@ -876,3 +883,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-78 | `test_ac_78_desert.gd` | `ac_78 ...` PASS lines |
 | AC-79 | `test_ac_79_watch_vignette.gd` | `ac_79 ...` PASS lines |
 | AC-80 | `test_ac_80_cards_and_start_board.gd` | `ac_80 ...` PASS lines |
+| AC-81 | `test_ac_81_energy_bar.gd` | `ac_81 ...` PASS lines |

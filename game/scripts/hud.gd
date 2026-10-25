@@ -8,8 +8,8 @@ const PIXEL := 0.0012
 const DISTANCE := 4.0      # metres in front of the eyes (was 1.2, then 2.5: still too close)
 const HEIGHT := 0.85       # metres above the gaze line: about 12 degrees up (was 20), lower in the view
 const HUD_SCALE := 5.12    # the layout below is in 1.2 m units; the same size on screen as 3.2 at 2.5 m (about 1.5x the first version)
-const BAR_WIDTH := 0.3
-const BAR_X := -0.17
+const BAR_WIDTH := 0.25
+const BAR_X := -0.145  # between the "Energy nn" text and the create-mode text (it used to overlap the first)
 const WATCH_RED := Color(1, 0.2, 0.2)
 
 var energy_label: Label3D
@@ -52,7 +52,7 @@ func _label(node_name: String, at: Vector2, align: HorizontalAlignment) -> Label
 	return l
 
 
-func _quad(node_name: String, size: Vector2, at: Vector2, color: Color) -> MeshInstance3D:
+func _quad(node_name: String, size: Vector2, at: Vector2, color: Color, priority: int, z := 0.0) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	m.name = node_name
 	var q := QuadMesh.new()
@@ -60,16 +60,16 @@ func _quad(node_name: String, size: Vector2, at: Vector2, color: Color) -> MeshI
 	m.mesh = q
 	var mat := Rig.unshaded(color)
 	mat.no_depth_test = true
-	mat.render_priority = 9
+	mat.render_priority = priority  # no depth test: draw order decides what is on top
 	m.material_override = mat
-	m.position = Vector3(at.x, at.y, 0)
+	m.position = Vector3(at.x, at.y, z)
 	add_child(m)
 	return m
 
 
 func _build_bar(at: Vector2) -> void:
-	_quad("HudBarBack", Vector2(BAR_WIDTH, 0.035), at, Color(0.15, 0.15, 0.2, 0.9))
-	_bar_fill = _quad("HudBarFill", Vector2(BAR_WIDTH, 0.03), at, Color(0.3, 0.9, 0.4))
+	_quad("HudBarBack", Vector2(BAR_WIDTH, 0.035), at, Color(0.15, 0.15, 0.2, 0.9), 8)
+	_bar_fill = _quad("HudBarFill", Vector2(BAR_WIDTH, 0.03), at, Color(0.3, 0.9, 0.4), 9, 0.002)  # drawn after the back, or it is hidden
 
 
 func _build_border(size: Vector2) -> void:
