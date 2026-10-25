@@ -17,7 +17,7 @@ func _init() -> void:
 	g.advance(0.3)
 	check("ac_45 energy -2", g.logic.energy == energy - 2)
 	check("ac_45 tile unchanged, one boulder under the player", g.logic.player_tile == own and g.logic.boulders.get(own, 0) == 1)
-	check("ac_45 origin is 0.5 m higher, x and z unchanged", absf(origin.global_position.y - before.y - 0.5) <= 0.01
+	check("ac_45 origin is one boulder higher, x and z unchanged", absf(origin.global_position.y - before.y - GameLogic.BOULDER_HEIGHT) <= 0.01
 			and absf(origin.global_position.x - before.x) <= 0.01 and absf(origin.global_position.z - before.z) <= 0.01)
-	check("ac_45 camera y = altitude + 0.5 + 1.6", absf(cam.global_position.y - (g.logic.height(own) + 0.5 + 1.6)) <= 0.01)
+	check("ac_45 camera y = altitude + one boulder + 1.6", absf(cam.global_position.y - (g.logic.height(own) + GameLogic.BOULDER_HEIGHT + 1.6)) <= 0.01)
 	finish()
