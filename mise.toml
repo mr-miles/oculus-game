@@ -7,6 +7,9 @@
 
 [settings]
 lockfile = true
+# The lock covers only the platforms this project is built on (the java metadata
+# has no entry for others, e.g. linux-arm64, and mise would fail trying to add them).
+lockfile_platforms = ["linux-x64", "macos-arm64"]
 experimental = true
 
 [tools]
