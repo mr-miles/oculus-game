@@ -69,7 +69,7 @@ func absorb_one_sentinel(g: Node) -> void:
 	var t: Vector2i = g.logic.sentinels[0].tile
 	stand_next_to(g, t)
 	g.aim_at(t)
-	g.press("by_button")
+	g.press("trigger_left_click")
 
 
 func tree_bounds(tree: Node3D) -> AABB:
@@ -87,6 +87,7 @@ func ray_from(g: Node, from: Vector3, toward: Vector3) -> Vector2i:
 	var dir := (toward - from).normalized()
 	var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT
 	g.rig.right.global_transform = Transform3D(Basis.looking_at(dir, up), from)
+	g.rig.left.global_transform = g.rig.right.global_transform
 	return g.aimed_tile()
 
 

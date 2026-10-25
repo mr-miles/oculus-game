@@ -1,7 +1,7 @@
 extends Node3D
 ## VR view of one level. Right controller points a ray at tiles: trigger =
-## create synthoid, A = move into it, B = absorb. Left stick snap-turns, Y
-## pauses, X shows a hint. All rules live in GameLogic; this node only shows
+## create synthoid, A = move into it. The left controller has its own (orange) ray:
+## left trigger = absorb. Left stick snap-turns, Y pauses, X shows a hint. All rules live in GameLogic; this node only shows
 ## the state and forwards input. Tests drive it with press / aim_at / advance.
 
 const TREE_HEIGHT := 3.0
@@ -37,6 +37,7 @@ var create_kind := "synthoid"  ## what the trigger creates: "synthoid" or "bould
 
 var _world: Node3D
 var _cursor: MeshInstance3D
+var _cursor_left: MeshInstance3D  # where the left (absorb) ray lands
 var _fade: MeshInstance3D
 var _ending: Label3D
 var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
@@ -68,6 +69,10 @@ func _ready() -> void:
 	_cursor.material_override = Rig.unshaded(Color.WHITE)
 	_cursor.visible = false
 	add_child(_cursor)
+	_cursor_left = Scenery.mesh_node("CursorLeft", _disc(0.5, 0.04), Color.WHITE, Vector3.ZERO)
+	_cursor_left.material_override = Rig.unshaded(Rig.LEFT_RAY_COLOR)
+	_cursor_left.visible = false
+	add_child(_cursor_left)
 	_ghost = Scenery.mesh_node("Ghost", null, Color.WHITE, Vector3.ZERO)
 	add_child(_ghost)
 	load_level(start_level)
@@ -307,8 +312,8 @@ func _dispatch(button: String) -> void:
 			if reason == "":
 				_start_move()
 			_finish("move", reason)
-		"by_button":
-			_finish("absorb", _check_tile(logic.absorb))
+		"trigger_left_click":
+			_finish("absorb", _check_tile(logic.absorb, "left"))
 		"ax_left_button":
 			_message = _hint()
 			refresh()
@@ -358,9 +363,9 @@ func _place_pause_menu() -> void:
 	menu.look_at_from_position(at, at + forward, Vector3.UP)  # front (+z) faces the player
 
 
-func _check_tile(action: Callable) -> String:
-	## Run a tile action on the aimed tile; "" on success, else the HUD reason.
-	var t := aimed_tile()
+func _check_tile(action: Callable, hand := "right") -> String:
+	## Run a tile action on the tile aimed by `hand`; "" on success, else the HUD reason.
+	var t := aimed_tile(hand)
 	if not logic.in_bounds(t):
 		return GameLogic.MSG_OFF_GRID
 	return action.call(t)
@@ -385,7 +390,7 @@ func _hint() -> String:
 	if logic.watched:
 		return "Hide behind a hill, or absorb the Sentinel."
 	if logic.energy < GameLogic.SYNTHOID_COST:
-		return "Aim at a tree and press B to gain energy."
+		return "Aim your left controller at a tree and pull its trigger to gain energy."
 	return "Make a body on a high tile you can see (trigger), then press A."
 
 
@@ -446,18 +451,18 @@ func _step_flow(seconds: float) -> void:
 
 # --- aiming and drawing -----------------------------------------------------
 
-func aimed_tile() -> Vector2i:
+func aimed_tile(hand := "right") -> Vector2i:
 	if _aim_forced:
 		return _aim_tile
-	return _ray_tile()
+	return _ray_tile(hand)
 
 
-func _ray_tile() -> Vector2i:
+func _ray_tile(hand := "right") -> Vector2i:
 	## First tile whose ground surface (slopes included) or standing object the
 	## right-hand ray reaches. Objects count as part of their tile, so aiming at
 	## a tree's canopy or a synthoid's head selects that tile.
-	var from := rig.ray_origin()
-	var dir := rig.ray_direction()
+	var from := rig.ray_origin(hand)
+	var dir := rig.ray_direction(hand)
 	var steps := int(RAY_REACH / RAY_STEP)
 	for i in range(1, steps):
 		var p := from + dir * (i * RAY_STEP)
@@ -488,9 +493,17 @@ func _process(delta: float) -> void:
 		advance(delta)
 	if paused:
 		_cursor.visible = false
+		_cursor_left.visible = false
 		_ghost.visible = false
 		menu.highlight(menu.pick(rig.ray_origin(), rig.ray_direction()))
 		return
+	var lt := aimed_tile("left")
+	_cursor_left.visible = logic.in_bounds(lt)
+	if _cursor_left.visible:
+		_cursor_left.position = logic.top_position(lt) + Vector3(0, 0.05, 0)
+		rig.set_ray_length(maxf(rig.ray_origin("left").distance_to(_cursor_left.position), 0.2), "left")
+	else:
+		rig.set_ray_length(3.0, "left")
 	var t := aimed_tile()
 	if logic.in_bounds(t):
 		_cursor.visible = true

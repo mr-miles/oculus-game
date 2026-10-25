@@ -16,7 +16,7 @@ func _init() -> void:
 			steps += 1
 	check("ac_24 six numbered steps", steps == 6)
 	var low := page.text.to_lower()
-	check("ac_24 steps name trigger, grip, A and B", low.contains("trigger") and low.contains("grip") and low.contains("press a") and low.contains("press b"))
+	check("ac_24 steps name trigger, grip, A and the left trigger", low.contains("trigger") and low.contains("grip") and low.contains("press a") and low.contains("left controller"))
 	check("ac_24 steps mention boulder and Sentinel", low.contains("boulder") and low.contains("sentinel"))
 	check("ac_24 controller diagram on this page", (l.find_child("ControllerDiagram", true, false) as Node3D).visible)
 	l.back()

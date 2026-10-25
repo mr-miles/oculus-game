@@ -273,7 +273,7 @@ stands on the aimed tile.
 | Right trigger | Create the selected object (synthoid or boulder) on the aimed tile |
 | Right grip (`grip_click`) | Toggle what the trigger creates: Synthoid (3) <-> Boulder (2). Default Synthoid at level start and after a retry |
 | Right A | **Move**: transfer into the aimed synthoid |
-| Right B | Absorb the top object of the aimed tile (tree, synthoid, boulder or Sentinel) |
+| Left trigger (`trigger_left_click`) | **Absorb** the top object of the tile the left (orange) ray aims at (tree, synthoid, boulder or Sentinel). The right hand makes and moves, the left hand absorbs; the right B button does nothing |
 | Left thumbstick left/right | Snap turn 30 degrees (rotates the XR origin around the player) |
 | Left Y | Pause menu: Resume / Restart level / Back to lobby |
 | Left X | Hint line: shows the one-line suggestion for the current state |
@@ -328,8 +328,9 @@ final page's primary button):
 3. **How to play**: a walkthrough in 5 numbered steps with a controller
    diagram, 6 numbered steps: 1 point and see yellow; 2 trigger = make a body
    (a synthoid); 3 A = move into it; 4 squeeze grip to switch to boulders,
-   trigger to stack them and climb (also under your feet); 5 B = absorb trees,
-   boulders and bodies for energy; 6 absorb the Sentinels. Each step names the
+   trigger to stack them and climb (also under your feet); 5 left controller
+   (orange ray) + its trigger = absorb trees, boulders and bodies for energy; 6 absorb
+   the Sentinels. Each step names the
    button.
 4. **Ready**: Start.
 
@@ -371,7 +372,7 @@ view. The prototype's left-hand label is removed.
   testable; the view only calls them.
 - **Test seams (required so every AC is automatable)**: `Main` exposes
   `press(button: String)` (calls the same handler as the controller signal,
-  names `trigger_click`, `grip_click`, `ax_button`, `by_button`, `by_left_button`...),
+  names `trigger_click`, `grip_click`, `ax_button`, `trigger_left_click`, `by_left_button`...),
   `GameLogic.create(tile, kind)` with kind `"synthoid"` or `"boulder"` (any
   other kind, including `"tree"`, is refused with a reason),
   `Levels.stages(n)` (the generator's intermediate grids, AC-54),
@@ -477,7 +478,7 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   move between them and page text is non-empty.
 - AC-24 (Scene) Story page text contains the words "Spark" and "Sentinel"; Rules
   page mentions energy (the numbers 2, 3 and 4 appear); How to play lists 6
-  numbered steps naming trigger, grip, A and B and the words "boulder" and
+  numbered steps naming trigger, grip, A and the left controller and the words "boulder" and
   "Sentinel".
 - AC-25 (Scene) `StartButton` is visible on every page; `press_start()` loads
   level 1 with energy 10 and HUD showing "Level 1 of 10".
@@ -626,7 +627,7 @@ steps). AC-57 now also guarantees that sloped tiles exist.
 - AC-65 (Scene) Aim on a slope with a real controller pose (no `aim_at`): a
   right-hand ray pointing at the centre of a sloped tile makes it the aimed
   tile; the disc is grey; `press("trigger_click")`, `press("ax_button")` and
-  `press("by_button")` change nothing and set `HudMessage` containing "Needs
+  `press("trigger_left_click")` change nothing and set `HudMessage` containing "Needs
   flat ground". A ray at a flat visible tile shows a yellow disc, at a hidden
   one a red disc.
 - AC-66 (Scene) Terrain mesh geometry: for every tile the four mesh vertices at
@@ -668,6 +669,13 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   camera's horizontal forward direction, 1.0 to 2.5 m away, at eye height and
   facing the player, at any rig yaw; it is fixed in the world (turning the head
   or rig afterwards does not move it) and is placed again each time it opens.
+
+*Controls split (board finding)*
+
+- AC-74 (Scene) The right hand makes and moves (trigger, grip, A), the left hand
+  absorbs: the left controller carries its own (orange) ray and cursor disc,
+  `trigger_left_click` absorbs the tile that ray aims at (not the right ray's),
+  and the right B button and the right trigger never absorb.
 
 Known simplification (kept from the prototype): visibility tests only whether
 terrain or a tree blocks the line to a tile's top centre; the target tile's
@@ -808,3 +816,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
 | AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |
+| AC-74 | `test_ac_74_controls_split.gd` | `ac_74 ...` PASS lines |
