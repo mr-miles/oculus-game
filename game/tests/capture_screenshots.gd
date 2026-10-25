@@ -47,6 +47,9 @@ func _level_shots() -> void:
 	var tree: Vector2i = logic.trees.keys()[0]
 	_face(g, start, tree)
 	await _shot("hud-start")
+	g.press("by_left_button")  # Y: the pause menu appears in front of you, fixed in the world
+	await _shot("pause-menu")
+	g.press("by_left_button")
 	# A body next to the tree for scale, then the hill's Sentinel with the watched warning.
 	var body := free_visible_tile(g)
 	g.aim_at(body)
