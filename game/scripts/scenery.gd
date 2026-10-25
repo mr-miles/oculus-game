@@ -20,7 +20,7 @@ static func add_sky(parent: Node) -> void:
 	env.environment.ambient_light_energy = 0.9
 	env.environment.fog_enabled = true  # distance haze: the desert fades into the horizon colour
 	env.environment.fog_light_color = Color(0.70, 0.84, 0.97)
-	env.environment.fog_density = 0.0025
+	env.environment.fog_density = 0.0012
 	env.environment.fog_sky_affect = 0.0
 	parent.add_child(env)
 	var sun := DirectionalLight3D.new()

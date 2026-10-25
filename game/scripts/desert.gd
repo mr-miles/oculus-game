@@ -1,14 +1,14 @@
 class_name Desert
 extends MeshInstance3D
 ## The sand that surrounds the level: gentle dunes from the foot of the hill out to the
-## horizon haze. One mesh (about 20k triangles) with a hole where the hill stands, flat at
+## horizon haze. One mesh (about 20k triangles at 8 m cells) with a hole where the hill stands, flat at
 ## the hill's edge (y = 0, where the terrain skirt ends) and rising into dunes further out.
 
-const CELL := 5.0        # metres per grid cell
-const HALF := 250.0      # the desert reaches this far from the hill's centre
+const CELL := 8.0        # metres per grid cell
+const HALF := 400.0      # the desert reaches this far from the hill's centre
 const DUNE_AFTER := 4.0  # dunes start rising this far from the hill's edge, full height at +24 m
-const SAND_LIGHT := Color(0.88, 0.76, 0.48)
-const SAND_DARK := Color(0.78, 0.64, 0.38)
+const SAND_LIGHT := Color(0.64, 0.50, 0.28)
+const SAND_DARK := Color(0.52, 0.40, 0.22)
 
 
 func _init() -> void:
