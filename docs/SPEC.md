@@ -654,6 +654,14 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
+*Absorb and win feedback (board finding)*
+
+- AC-75 (Scene) An absorbed Sentinel does not vanish at once: for 0.8 s it
+  deflates (its model squashes in height, bulges slightly and shrinks away)
+  before it is removed. Clearing a level shows "Hill cleared!" ("You freed the
+  valley!" after level 10) as a large card (about 2.0 m ahead, centred, bigger than
+  the HUD text) for the 3 s before the next level, in addition to the HUD line.
+
 *Lobby placement (board finding)*
 
 - AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
@@ -808,3 +816,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
 | AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |
+| AC-75 | `test_ac_75_deflate_and_won_card.gd` | `ac_75 ...` PASS lines |

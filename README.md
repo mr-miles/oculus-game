@@ -44,7 +44,7 @@ explains every failed action.
 | Left X | Hint for the current situation |
 
 Each action plays its own placeholder sound and a short controller pulse.
-Absorb every Sentinel to clear a hill; clearing level 10 shows the ending card
+An absorbed Sentinel deflates (squashes and shrinks away over 0.8 s), and clearing a hill shows a large "Hill cleared!" card in the middle of your view. Absorb every Sentinel to clear a hill; clearing level 10 shows the ending card
 and returns to the lobby.
 
 Screenshots (rendered headlessly, see below) are in `docs/screenshots/`.
