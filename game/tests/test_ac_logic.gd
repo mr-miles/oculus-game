@@ -354,7 +354,7 @@ func ac_44_create_boulder() -> void:
 	check("ac_44_create_boulder succeeds", g.create(t, "boulder") == "")
 	check("ac_44_create_boulder energy -2", g.energy == 8)
 	check("ac_44_create_boulder one boulder", g.boulder_count(t) == 1 and g.object_at(t) == "boulder")
-	check("ac_44_create_boulder surface +0.5 m", is_equal_approx(g.stack_height(t), 0.5) and is_equal_approx(g.top_position(t).y, 0.5))
+	check("ac_44_create_boulder surface +1.0 m", is_equal_approx(g.stack_height(t), GameLogic.BOULDER_HEIGHT) and is_equal_approx(g.top_position(t).y, 1.0))
 	check("ac_44_create_boulder tile still free", not g.occupied(t))
 	check("ac_44_create_boulder second boulder and synthoid on top", g.create(t, "boulder") == "" and g.create(t) == "" and g.object_at(t) == "synthoid")
 
@@ -656,3 +656,47 @@ func ac_64_sight_over_slopes() -> void:
 		results.append(g.can_see(Vector2i(3, 1)))
 	check("ac_64_sight_over_slopes blocked at apex 5 and 4", not results[0] and not results[1])
 	check("ac_64_sight_over_slopes visible at apex 3.5 and 1", results[2] and results[3])
+
+
+## 12x12 grid on altitude 0 whose corner columns from `from_cx` on are `top` high:
+## the tile before that column is a ramp, the tiles after it a plateau.
+func step_grid(from_cx: int, top: int) -> GameLogic:
+	var g := GameLogic.new(12)
+	var grid := []
+	for z in 13:
+		var row := []
+		for x in 13:
+			row.append(top if x >= from_cx else 0)
+		grid.append(row)
+	g.load_corners(grid)
+	g.player_tile = Vector2i(1, 1)
+	return g
+
+
+func ac_70_boulder_sees_over_step() -> void:
+	var plateau := Vector2i(4, 1)
+	var g := step_grid(3, 2)
+	check("ac_70 2 m step, no boulder: plateau hidden", not g.can_see(plateau))
+	g.boulders[g.player_tile] = 1
+	check("ac_70 2 m step, one boulder: plateau visible", g.can_see(plateau))
+	g = step_grid(3, 3)
+	g.boulders[g.player_tile] = 1
+	check("ac_70 3 m step, one boulder: still hidden", not g.can_see(plateau))
+	g.boulders[g.player_tile] = 2
+	check("ac_70 3 m step, two boulders: visible", g.can_see(plateau))
+
+
+func ac_71_synthoid_on_boulder_eye() -> void:
+	var g := step_grid(4, 2)
+	sentinel(g, Vector2i(11, 11), 0.0)
+	g.awake = false
+	g.energy = 20
+	var t := Vector2i(2, 1)
+	var plateau := Vector2i(4, 1)
+	check("ac_71 create boulder and synthoid on T", g.create(t, "boulder") == "" and g.create(t) == "")
+	check("ac_71 move into T", g.move(t) == "" and g.boulder_count(t) == 1)
+	check("ac_71 eye is altitude + 1.0 + 1.6", is_equal_approx(g.eye_position().y, 2.6))
+	check("ac_71 plateau visible from the stack", g.can_see(plateau))
+	var plain := step_grid(4, 2)
+	plain.player_tile = t
+	check("ac_71 plateau hidden from T without the boulder", not plain.can_see(plateau))

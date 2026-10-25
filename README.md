@@ -35,7 +35,7 @@ explains every failed action.
 | Input | Action |
 |---|---|
 | Right ray | Yellow disc = flat tile you can see, red = flat but hidden, grey = sloped ("Needs flat ground") |
-| Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 0.5 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
+| Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 1.0 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
 | Right grip | Switch the create mode Synthoid <-> Boulder (shown on the HUD; a translucent ghost shows what you will make) |
 | Right A | Move into the aimed synthoid (0.2 s fade) |
 | Right B | Absorb the top object of the aimed tile: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4) |
@@ -56,7 +56,7 @@ levels in `game/scripts/levels.gd`; the VR view only calls them.
 
 - **Energy.** Start 10 (carried to the next level, at least 10, at most 63). A
   synthoid costs 3 and a boulder 2; absorbing gives tree 1, synthoid 3, boulder 2,
-  Sentinel 4 (only the top object of a tile is absorbed). Boulders (0.5 m, up to
+  Sentinel 4 (only the top object of a tile is absorbed). Boulders (1.0 m, up to
   6 per tile) stack under a synthoid, block sight, and can be made under your
   own feet to raise your eye. Only flat tiles take objects; trees cannot be
   created. At most 64 objects exist at once.

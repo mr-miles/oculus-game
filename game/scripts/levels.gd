@@ -18,7 +18,7 @@ const MAX_ATTEMPTS := 100000  # random draws before placement gives up
 const SENTINELS := [1, 1, 2, 2, 3, 3, 4, 4, 5, 6]
 ## Landscape number per level (index 0 = level 1). The spec default is n - 1;
 ## entries may differ where that landscape fails a shape check (SPEC 4.1).
-const LANDSCAPE := [0, 1, 15, 10, 4, 5, 11, 17, 19, 9]
+const LANDSCAPE := [1, 0, 15, 10, 4, 5, 21, 17, 19, 9]
 const _LFSR_MASK := 0xFFFFFFFFFF  # 40 bits
 
 
