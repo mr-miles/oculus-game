@@ -658,11 +658,165 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
-*Sky and sun (board finding)*
+*Ambient wind (board finding)*
 
-- AC-76 (Scene) The lobby and every level use a shader sky (`scripts/sky.gdshader`:
-  blue gradient, soft clouds that drift with `TIME`, a sun disc where the light
-  points) that re-renders every frame, and a `Sun` DirectionalLight3D with
-  shadows on (one orthogonal cascade, 80 m, 2048 atlas: the Quest 2 budget), so
-  trees, Sentinels, synthoids and boulders cast shadows on the terrain. Tests
-  check the setup; how it looks and runs on a Quest 2 is not measured.
+- AC-77 (Scene) The lobby and every level play a gentle wind: a generated 8 s
+  loop of low-pass filtered noise with slow gusts (no audio files), started
+  automatically, looping seamlessly (end and start samples match), audible but
+  quiet (-22 dB player volume). It is separate from the action sounds.
+
+*Lobby placement (board finding)*
+
+- AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
+  horizontal forward direction, 2.0 to 3.5 m away, at eye height and facing the
+  player; it does not move when the camera or the rig yaws afterwards; and
+  placing it again from any rig yaw (90, 180, -137 degrees) puts it in front of
+  the camera.
+
+*Pause menu placement (board finding)*
+
+- AC-73 (Scene) When Y opens the pause menu it appears within 5 degrees of the
+  camera's horizontal forward direction, 1.0 to 2.5 m away, at eye height and
+  facing the player, at any rig yaw; it is fixed in the world (turning the head
+  or rig afterwards does not move it) and is placed again each time it opens.
+
+Known simplification (kept from the prototype): visibility tests only whether
+terrain or a tree blocks the line to a tile's top centre; the target tile's
+own surface never blocks. A Sentinel standing higher than the player is
+therefore visible and absorbable from a lower tile if nothing is in the way.
+The original needs the tile's top face in view, which forces more climbing.
+
+## 13. Audit against the research and open items
+
+Research = `docs/research/01-sentinel.md` Part B (BBC Micro source). "Align" =
+spec follows the research. "Departure" = deliberate, with reason.
+
+| # | Item | Research | Spec | Verdict |
+|---|---|---|---|---|
+| 1 | Grid | 31x31 tiles (32x32 corners) | 31x31 | Align (earlier draft was wrong) |
+| 2 | Altitudes | 1-11 | 1-11, 1 step = 1 m (original: step = tile width) | Align range; departure on scale: 11 m peaks keep eye-height comfortable, prototype scale |
+| 3 | Tile shapes / slopes | 16 shape codes (0-15, no 8), 0 = flat, from the 4 corner altitudes; objects on flat tiles only | tiles are triangulated from the 4 corners; classes flat, slope, ridge, valley; objects, player, Sentinels and trees on flat only (section 4.2) | Align on idea and on flat-only placement; departure: four classes instead of the original's numeric codes, because the research does not give the encoding |
+| 4 | Terrain generator | 40-bit LFSR, 11 steps, 10,000 landscapes | same LFSR and step structure (section 4.1), 10 levels | Align on structure; departures: the spike repair and the stretch/limit step are ours (research gives no detail), only 10 landscapes; earlier "simplified noise" departure removed |
+| 5 | Trees | 10-32, cap 48 - 3 x enemies, below lowest enemy | 10..28 by level, same cap and placement | Align |
+| 6 | Enemy count | 1 for landscapes 0-9, then 1 + tens digit, max 8 | 1,1,2,2,3,3,4,4,5,6 | Departure: gentler ramp for a family game and 10 levels |
+| 7 | Enemy kinds | one Sentinel (4), up to 7 optional sentries (3) | all enemies are Sentinels worth 4, all must be absorbed | Departure: one counter and one goal; sentries/Meanies are v2 |
+| 8 | Enemy placement | highest 4x4 block, used block + 8 neighbours removed | same | Align |
+| 9 | Sentinel on a tower | yes | tile only | Departure: no towers in v1 |
+| 10 | Player start | flat empty, altitude <= min(6, lowest enemy) | same | Align (replaces earlier "height <= 1, 6 tiles away") |
+| 11 | Energy values | robot 3, tree 1, boulder 2, Sentinel 4, sentry 3 | synthoid 3, tree 1, boulder 2, Sentinel 4 | Align; sentries not in v1 |
+| 12 | Start / max energy | 10 / 63 | 10 / 63 | Align |
+| 13 | Total landscape energy | at most 49 | trees + 3 x enemies <= 48 tested; 49 not separately tested | Align by construction; meaning of 49 not fully established in the research |
+| 14 | Create cost = absorb yield | yes | yes | Align |
+| 15 | Object limit | 64 | 64, boulders included | Align |
+| 16 | Next level | landscape + remaining energy (cap 63) | level n+1; energy carried, min 10 | Departure: fixed 10-level progression; minimum 10 avoids dead ends |
+| 17 | Win | absorb the Sentinel, then hyperspace | absorb all Sentinels | Departure: no hyperspace in v1 |
+| 18 | Hyperspace (cost 3) | yes | none | Departure: v2 candidate |
+| 19 | Meanies | trees become Meanies when only your head is seen | none | Departure: v2 candidate; head-vs-tile sighting not implemented |
+| 20 | Turn step / interval | 28.125 deg every 11.94 s, direction fixed per enemy | same | Align |
+| 21 | Enemy view arc | 28.125 deg (yaw 20 units); sources unclear whether total or half | 56.25 deg total (28.125 each side) | Departure on interpretation: VR needs a readable cone; constant, tunable |
+| 22 | Drain delay / rate | 7.14 s then 1 per 1.74 s | same | Align |
+| 23 | Lose | drain while energy 0 | same | Align (earlier draft lost at 0) |
+| 24 | Enemy wake-up | idle until you spend/absorb energy | same | Align (new AC-18) |
+| 25 | First tactic delay | random 0.24-3.72 s per enemy | none | Departure: simplicity |
+| 26 | Enemy sight range | no limit found (open in research) | unlimited | Align with the open item |
+| 27 | Trees block sight | yes | yes, 3 m | Align |
+| 28 | Eye height | 0.875 tile (1.75 m at 2 m) | 1.6 m | Departure: prototype value |
+| 29 | Targetable | not own tile, not above eye, objects hit by ray | not own tile; visible tiles only | Align in effect; "above eye" is covered by line of sight |
+| 30 | Scoring, secret codes | none / 8-digit codes | none | Departure: no codes in v1 |
+| 31 | Locomotion | not in original | A moves into synthoid, snap turn | Departure: VR |
+| 32 | HUD | not in original (research suggests wrist gauge) | head-locked HUD (product requirement) | Departure |
+
+Other open items: audio and art are placeholders in v1; real-device
+confirmation of button mapping and comfort is a manual post-release check;
+terrain must be a merged mesh (AC-39) because 961 separate tile nodes would
+exceed the Quest draw-call budget.
+
+| 33 | Boulders | create 2, absorb 2, stack 0.5, objects sit on boulders | same, 6 per tile max, 1.0 m per boulder | Align on energy; departure on height (board: 0.5 m was too short to see over the next altitude step) and the cap of 6 is ours (comfort and draw cost) |
+| 34 | Create on own tile | own tile not targetable | boulder allowed on own tile, raises the eye | Departure (board request): gives a way to climb without a second body; energy cost stops abuse |
+| 35 | Creating trees | player can create trees (T) | cannot | Departure (board request) |
+| 36 | Create keys | R, T, B | trigger + grip mode toggle | Departure: VR controls |
+| 37 | Sentinels drain robots to boulders | yes | Sentinels drain only the player | Departure: v1 simplicity |
+| 38 | Boulder side targeting | must hit a boulder side to stack | aim at any tile; goes on top | Departure: simpler VR aim |
+
+## 14. Traceability (engineers fill in)
+
+Every AC is checkable headlessly (`mise run test`, or `mise run build` for
+AC-37); the device checks in section 10 are extra, not ACs. One row per AC;
+fill the test file and test function when the test is written. Existing tests for AC-3, AC-4, AC-17, AC-24 and AC-28 change with the v3 text above.
+
+| AC | Test file (under `game/tests/`) | Test name |
+|---|---|---|
+| AC-1 | `test_ac_logic.gd` | `ac_1_new_game` |
+| AC-2 | `test_ac_logic.gd` | `ac_2_create_costs_three` |
+| AC-3 | `test_ac_logic.gd` | `ac_3_create_fails` |
+| AC-4 | `test_ac_logic.gd` | `ac_4_absorb_energy` |
+| AC-5 | `test_ac_logic.gd` | `ac_5_absorb_fails` |
+| AC-6 | `test_ac_logic.gd` | `ac_6_line_of_sight` |
+| AC-7 | `test_ac_logic.gd` | `ac_7_transfer` |
+| AC-8 | `test_ac_logic.gd` | `ac_8_sentinel_turns` |
+| AC-9 | `test_ac_logic.gd` | `ac_9_watched` |
+| AC-10 | `test_ac_logic.gd` | `ac_10_drain_timing` |
+| AC-11 | `test_ac_logic.gd` | `ac_11_win_lose` |
+| AC-12 | `test_ac_12_move_origin.gd` | `ac_12 ...` PASS lines |
+| AC-13 | `test_ac_13_move_camera.gd` | `ac_13 ...` PASS lines |
+| AC-14 | `test_ac_14_move_fails.gd` | `ac_14 ...` PASS lines |
+| AC-15 | `test_ac_15_snap_turn.gd` | `ac_15 ...` PASS lines |
+| AC-16 | `test_ac_logic.gd` | `ac_16_levels_match_table` |
+| AC-17 | `test_ac_logic.gd` | `ac_17_level_constraints` |
+| AC-18 | `test_ac_logic.gd` | `ac_18_sentinels_idle_until_first_action` |
+| AC-19 | `test_ac_logic.gd` | `ac_19_solver_bot_clears_all` |
+| AC-20 | `test_ac_logic.gd` | `ac_20_energy_carry_and_retry` |
+| AC-21 | `test_ac_21_level_flow.gd` | `ac_21 ...` PASS lines |
+| AC-22 | `test_ac_22_launch_is_lobby.gd` | `ac_22 ...` PASS lines |
+| AC-23 | `test_ac_23_lobby_pages.gd` | `ac_23 ...` PASS lines |
+| AC-24 | `test_ac_24_lobby_text.gd` | `ac_24 ...` PASS lines |
+| AC-25 | `test_ac_25_start.gd` | `ac_25 ...` PASS lines |
+| AC-26 | `test_ac_26_pause_to_lobby.gd` | `ac_26 ...` PASS lines |
+| AC-27 | `test_ac_27_hud_headlocked.gd` | `ac_27 ...` PASS lines |
+| AC-28 | `test_ac_28_hud_position.gd` | `ac_28 ...` PASS lines |
+| AC-29 | `test_ac_29_hud_energy.gd` | `ac_29 ...` PASS lines |
+| AC-30 | `test_ac_30_hud_sentinels.gd` | `ac_30 ...` PASS lines |
+| AC-31 | `test_ac_31_hud_watched.gd` | `ac_31 ...` PASS lines |
+| AC-32 | `test_ac_32_no_hand_label.gd` | `ac_32 ...` PASS lines |
+| AC-33 | `test_ac_33_big_trees.gd` | `ac_33 ...` PASS lines |
+| AC-34 | `test_ac_34_aim_tree_tile.gd` | `ac_34 ...` PASS lines |
+| AC-35 | `test_ac_35_sentinel_facing.gd` | `ac_35 ...` PASS lines |
+| AC-36 | `test_ac_36_feedback.gd` | `ac_36 ...` PASS lines |
+| AC-37 | `tools/check-test-gate.sh` (`mise run test-gate`); APK: `mise run build` runs `verify-apk.sh` | `TEST GATE OK` lines; `verify` OK lines |
+| AC-38 | `test_ac_38_names_gate.gd`, `tools/check-names.sh` | `ac_38 ...` PASS lines |
+| AC-39 | `test_ac_39_terrain_meshes.gd` | `ac_39 ...` PASS lines |
+| AC-40 | `test_ac_40_tree_canopy.gd` | `ac_40 ...` PASS lines |
+| AC-41 | `test_ac_41_tree_shape.gd` | `ac_41 ...` PASS lines |
+| AC-42 | `test_ac_42_hud_top.gd` | `ac_42 ...` PASS lines |
+| AC-43 | `test_ac_43_grip_toggle.gd` | `ac_43 ...` PASS lines |
+| AC-44 | `test_ac_logic.gd` | `ac_44_create_boulder` |
+| AC-45 | `test_ac_45_boulder_under_you.gd` | `ac_45 ...` PASS lines |
+| AC-46 | `test_ac_logic.gd` | `ac_46_trees_not_creatable` |
+| AC-47 | `test_ac_logic.gd` | `ac_47_stacks` |
+| AC-48 | `test_ac_logic.gd` | `ac_48_absorb_top_only` |
+| AC-49 | `test_ac_logic.gd` | `ac_49_boulders_block_sight` |
+| AC-50 | `test_ac_logic.gd` | `ac_50_energy_math` |
+| AC-51 | `test_ac_51_lobby_six_steps.gd` | `ac_51 ...` PASS lines |
+| AC-52 | `test_ac_52_hud_mode.gd` | `ac_52 ...` PASS lines |
+| AC-53 | `test_ac_53_climb_stack.gd` | `ac_53 ...` PASS lines |
+| AC-54 | `test_ac_logic.gd` | `ac_54_generator_stages` |
+| AC-55 | `test_ac_logic.gd` | `ac_55_no_pits_or_spikes` |
+| AC-56 | `test_ac_logic.gd` | `ac_56_smooth_not_noise` |
+| AC-57 | `test_ac_logic.gd` | `ac_57_flat_share` |
+| AC-58 | `test_ac_logic.gd` | `ac_58_sentinels_on_peaks` |
+| AC-59 | `test_ac_logic.gd` | `ac_59_deterministic` |
+| AC-60 | `test_ac_logic.gd` | `ac_60_tile_shapes` |
+| AC-61 | `test_ac_logic.gd` | `ac_61_surface_height` |
+| AC-62 | `test_ac_logic.gd` | `ac_62_slopes_in_levels` |
+| AC-63 | `test_ac_logic.gd` | `ac_63_objects_only_on_flat` |
+| AC-64 | `test_ac_logic.gd` | `ac_64_sight_over_slopes` |
+| AC-65 | `test_ac_65_aim_slope.gd` | `ac_65 ...` PASS lines |
+| AC-66 | `test_ac_66_terrain_geometry.gd` | `ac_66 ...` PASS lines |
+| AC-67 | `test_ac_67_terrain_colours.gd` | `ac_67 ...` PASS lines |
+| AC-68 | `test_ac_68_move_flat_height.gd` | `ac_68 ...` PASS lines |
+| AC-69 | `tools/check-test-gate.sh` (`mise run test-gate`) | `README GATE OK` line |
+| AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
+| AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
+| AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
+| AC-77 | `test_ac_77_wind.gd` | `ac_77 ...` PASS lines |
+| AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |
