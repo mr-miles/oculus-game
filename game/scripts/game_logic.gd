@@ -71,6 +71,8 @@ var awake := false                # Sentinels stay idle until the first action
 var watch_ticks := 0              # consecutive ticks watched
 
 var _pending := 0.0
+var _world_version := 0   # bumped whenever the world (terrain, objects, player) may have changed
+var _sight_cache := {}    # Sentinel tile -> [world version, sees the player's eye]
 
 
 func _init(grid_size := 12) -> void:
@@ -110,6 +112,7 @@ func corner(cx: int, cz: int) -> int:
 
 func set_corner(cx: int, cz: int, altitude: int) -> void:
 	## Change one corner and refresh the (up to four) tiles that share it.
+	_world_version += 1
 	corners[cz][cx] = altitude
 	for t in [Vector2i(cx - 1, cz - 1), Vector2i(cx, cz - 1), Vector2i(cx - 1, cz), Vector2i(cx, cz)]:
 		if in_bounds(t):
@@ -124,6 +127,7 @@ func set_tile(t: Vector2i, altitude: int) -> void:
 
 func load_corners(grid: Array) -> void:
 	## Replace the whole corner grid (size + 1 rows of size + 1 altitudes).
+	_world_version += 1
 	for z in size + 1:
 		for x in size + 1:
 			corners[z][x] = grid[z][x]
@@ -272,7 +276,16 @@ func sentinel_sees(s: Dictionary, eye: Vector3) -> bool:
 	var angle := rad_to_deg(Vector2(sin(deg_to_rad(s.facing)), cos(deg_to_rad(s.facing))).angle_to(d))
 	if absf(angle) > SENTINEL_FOV / 2.0 + 0.0001:
 		return false
-	return _clear(origin + Vector3(0, SENTINEL_EYE, 0), eye, s.tile, player_tile)
+	if not eye.is_equal_approx(eye_position()):
+		return _clear(origin + Vector3(0, SENTINEL_EYE, 0), eye, s.tile, player_tile)
+	# Sight only changes when the world does, so the (costly) line test for the
+	# player's own eye is cached until update_watch(), an action or a terrain edit.
+	var cached = _sight_cache.get(s.tile)
+	if cached != null and cached[0] == _world_version:
+		return cached[1]
+	var seen := _clear(origin + Vector3(0, SENTINEL_EYE, 0), eye, s.tile, player_tile)
+	_sight_cache[s.tile] = [_world_version, seen]
+	return seen
 
 
 func watched_from(t: Vector2i) -> bool:
@@ -392,7 +405,7 @@ func _tick() -> void:
 			s.clock = 0
 			s.turned += s.dir * SENTINEL_TURN_STEP
 			s.facing = fposmod(s.facing + s.dir * SENTINEL_TURN_STEP, 360.0)
-	update_watch()
+	_recompute_watch()
 	if watched:
 		watch_ticks += 1
 		var since := watch_ticks - _DELAY_TICKS
@@ -406,6 +419,12 @@ func _tick() -> void:
 
 
 func update_watch() -> void:
+	## Recompute who watches the player. Call after changing the world by hand.
+	_world_version += 1
+	_recompute_watch()
+
+
+func _recompute_watch() -> void:
 	var eye := eye_position()
 	watched = false
 	for s in sentinels:
