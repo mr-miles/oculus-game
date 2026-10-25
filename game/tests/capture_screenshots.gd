@@ -66,20 +66,26 @@ func _level_shots() -> void:
 	# Trees: stand a few tiles back so the whole tree is in view, a synthoid beside it for scale.
 	logic.watched = false
 	var spot := _spot_viewing(logic, tree)
-	logic.synthoids[_free_neighbour(logic, tree)] = true
 	logic.player_tile = spot
 	g.rig.place_at(logic.top_position(spot))
+	logic.synthoids[_free_neighbour(logic, tree)] = true
 	_face(g, spot, tree)
 	g.refresh()
 	await _shot("trees-bigger")
-	# A boulder stack (three boulders and a synthoid on top) seen from a few tiles away.
+	# A boulder stack made with the real controls: three boulders, then a synthoid on top.
+	logic.energy = 20
 	var pile := _free_neighbour(logic, tree)
 	logic.synthoids.erase(pile)
-	g.refresh()  # drop the old marker; the synthoid goes on top of the stack below
-	logic.boulders[pile] = 3
-	logic.synthoids[pile] = true
-	g.press("grip_click")  # the HUD now reads "Create: Boulder (2)"
 	g.refresh()
+	g.aim_at(pile)
+	g.press("grip_click")  # boulder mode: the HUD reads "Create: Boulder (2)"
+	for i in 3:
+		g.press("trigger_click")
+	g.press("grip_click")
+	g.press("trigger_click")  # the synthoid goes on top of the boulders
+	g.press("grip_click")
+	g.aim_at(Vector2i(-1, -1))
+	g._aim_forced = false
 	await _shot("boulder-stack")
 	# Climb: two boulders under your own feet lift the view (boulder mode is still on).
 	logic.energy = 20
@@ -109,9 +115,11 @@ func _level_shots() -> void:
 
 
 func _free_neighbour(logic: GameLogic, t: Vector2i) -> Vector2i:
+	## A flat, empty, visible tile next to t (the player is already in place).
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		if logic.in_bounds(t + d) and not logic.occupied(t + d):
-			return t + d
+		var n: Vector2i = t + d
+		if logic.in_bounds(n) and logic.is_flat(n) and logic.can_see(n) and not logic.occupied(n):
+			return n
 	return t
 
 
