@@ -35,7 +35,7 @@ explains every failed action.
 | Input | Action |
 |---|---|
 | Right ray | Yellow disc = flat tile you can see, red = flat but hidden, grey = sloped ("Needs flat ground") |
-| Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 0.5 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
+| Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 1.0 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
 | Right grip | Switch the create mode Synthoid <-> Boulder (shown on the HUD; a translucent ghost shows what you will make) |
 | Right A | Move into the aimed synthoid (0.2 s fade) |
 | Right B | Absorb the top object of the aimed tile: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4) |
@@ -56,7 +56,7 @@ levels in `game/scripts/levels.gd`; the VR view only calls them.
 
 - **Energy.** Start 10 (carried to the next level, at least 10, at most 63). A
   synthoid costs 3 and a boulder 2; absorbing gives tree 1, synthoid 3, boulder 2,
-  Sentinel 4 (only the top object of a tile is absorbed). Boulders (0.5 m, up to
+  Sentinel 4 (only the top object of a tile is absorbed). Boulders (1.0 m, up to
   6 per tile) stack under a synthoid, block sight, and can be made under your
   own feet to raise your eye. Only flat tiles take objects; trees cannot be
   created. At most 64 objects exist at once.
@@ -99,6 +99,21 @@ binary (`linux.x86_64`; there is a `linux.arm64` build), the Temurin JDK
 variants in `mise.toml`; nothing else changes. Google's SDK has no official
 arm64-Linux build-tools, so that path is untested and likely rough.
 
+## Pinned versions
+
+| Item | Version | Where | Why this one |
+|---|---|---|---|
+| mise | 2026.10.19 | `min_version` in `mise.toml`, workflow `version:` | latest; local and CI must match |
+| Java | Temurin 21.0.13+9 (LTS) | `mise.toml` | newest LTS that the Gradle 8.11.1 required by the Godot 4.7.2 Android template can run on (Java 25 needs Gradle 9) |
+| Godot + export templates | 4.7.2-stable | `mise.toml`, `tools/setup-android.sh` | latest stable |
+| OpenXR Vendors plugin | 5.1.0-stable | `mise.toml` | latest stable |
+| Android command-line tools | 23.0 (16111833) | `mise.toml` | latest |
+| Android platform / build-tools | android-36 / 36.1.0 | `tools/setup-android.sh` | what the Godot template asks for |
+| Gradle / Android Gradle plugin / Kotlin | 8.11.1 / template / 2.1.21 | Godot's Android template | fixed by Godot 4.7.2; not ours to change |
+| CI runner and actions | ubuntu-26.04; checkout v7, mise-action v5, cache v6, upload-artifact v7 | `.github/workflows/build-apk.yml` | latest |
+
+The lock (`mise.lock`) covers linux-x64 only, the platform CI and the build use.
+
 ## Layout
 
 | Path | What |
@@ -123,7 +138,7 @@ plugins.gradle.org, central.sonatype.com, and mise's own hosts (mise.jdx.dev,
 mise-versions.jdx.dev, mise-java.jdx.dev). No NDK, Android Studio or display.
 
 ```sh
-curl https://mise.run | sh            # or any mise install; tested with v2026.10.18
+curl https://mise.run | sh            # or any mise install; needs mise >= 2026.10.19 (CI uses exactly that)
 git clone https://git.shop.internal/product.git && cd product
 mise trust
 mise run setup                         # installs pinned tools, SDK, templates (~3 min)

@@ -51,8 +51,8 @@ on flat tiles. Terms:
 - **Stack**: the objects on one tile from the ground up: 0 to 6 boulders, then
   at most one top object (synthoid, tree or Sentinel). Only boulders can have
   something on top of them; nothing can be created on a tree, synthoid or
-  Sentinel. **Surface height** of a tile = altitude + 0.5 m per boulder
-  (BOULDER_HEIGHT). Your eye is the surface height of your tile + 1.6 m.
+  Sentinel. **Surface height** of a tile = altitude + 1.0 m per boulder
+  (BOULDER_HEIGHT, one altitude step). Your eye is the surface height of your tile + 1.6 m.
   Boulders block sight like terrain; synthoids do not.
 
 Constants (single source: `GameLogic` constants):
@@ -62,7 +62,7 @@ Constants (single source: `GameLogic` constants):
 | SYNTHOID_COST | 3 energy |
 | BOULDER_COST | 2 energy |
 | BOULDER_ENERGY (absorbing one) | 2 |
-| BOULDER_HEIGHT | 0.5 m |
+| BOULDER_HEIGHT | 1.0 m (one altitude step; board request, was 0.5 m) |
 | MAX_BOULDERS_PER_TILE | 6 |
 | MAX_OBJECTS | 64 (trees, boulders, synthoids and Sentinels all count) |
 | TREE_ENERGY | 1 |
@@ -85,8 +85,8 @@ Rules:
    boulders goes on top of them. **Trees cannot be created by the player** (they
    exist only from level generation). A synthoid cannot be created on your own
    tile; a **boulder can**: it is added under you, the tile stays yours, and
-   your eye rises by 0.5 m. This is how you climb without a second body; it
-   costs 2 energy per half metre, and you cannot take that energy back while
+   your eye rises by 1.0 m. This is how you climb without a second body; it
+   costs 2 energy per metre, and you cannot take that energy back while
    you stand there (you may not absorb your own tile).
 2. Transfer (move): needs a visible tile whose top object is a synthoid; you
    now stand on that tile, the synthoid is consumed (no energy change), view
@@ -188,10 +188,10 @@ along the a-d diagonal:
 
 So the fold of a ridge or valley is always on the a-d diagonal, a flat tile
 has h = its altitude everywhere, and a tile corner's surface height is the
-corner altitude. Boulders add 0.5 m each on flat tiles only.
+corner altitude. Boulders add 1.0 m each on flat tiles only.
 
 **Eye height.** The player stands only on flat tiles, so the eye is always
-flat altitude + 0.5 m per boulder + 1.6 m (spec 3); slopes never change it
+flat altitude + 1.0 m per boulder + 1.6 m (spec 3); slopes never change it
 and there is no walking onto a slope. A transfer into a synthoid never lands on
 a slope because synthoids are only created on flat tiles.
 
@@ -357,7 +357,7 @@ view. The prototype's left-hand label is removed.
   0.2 m) under a large green leaf mass (node `Canopy`: 1.8 m high, i.e. 60% of
   the tree, radius 0.9 m, starting 1.0 m above the tile). Absorb/aim hit area
   covers the whole tile top.
-- Boulders: grey, 0.5 m high, covering most of the tile (radius 0.8 m), stacked
+- Boulders: grey, 1.0 m high, covering most of the tile (radius 0.8 m), stacked
   with no gaps; the ghost preview is a translucent boulder or synthoid.
 - Sentinels (red tall figures, yellow nose) face the direction they look; the
   nose shows facing. A counter ring above each Sentinel is optional.
@@ -543,12 +543,12 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   boulder and nothing else; pressing it any number of times never yields a
   third mode (no tree).
 - AC-44 (Logic) Create a boulder on a visible empty flat tile: energy -2, one
-  boulder on the tile, the tile's surface height rises by 0.5 m, the tile is
+  boulder on the tile, the tile's surface height rises by 1.0 m, the tile is
   still free for another boulder or a synthoid on top.
 - AC-45 (Scene) Boulder mode, `aim_at` the player's own tile, trigger: energy -2,
   the player's tile is unchanged, boulders under the player = 1, and after
-  `advance(0.3)` `XROrigin3D` y is higher by 0.5 m (+-1 cm) with x and z
-  unchanged, and `XRCamera3D` y = altitude + 0.5 + 1.6 (room offset zero).
+  `advance(0.3)` `XROrigin3D` y is higher by 1.0 m (+-1 cm) with x and z
+  unchanged, and `XRCamera3D` y = altitude + 1.0 + 1.6 (room offset zero).
   The same press in synthoid mode on the own tile fails with a reason.
 - AC-46 (Logic) `create(tile, "tree")` is refused with a reason and changes
   nothing (energy, objects), on any tile including the player's; there is no
@@ -557,13 +557,13 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   synthoid can be created on top of boulders; nothing can be created on a tile
   whose top is a tree, a synthoid or a Sentinel.
 - AC-53 (Scene) With a synthoid on top of 2 boulders at tile T: `aim_at(T)`,
-  `press("ax_button")`, `advance(0.3)`: `XRCamera3D` y = altitude(T) + 1.0 + 1.6
+  `press("ax_button")`, `advance(0.3)`: `XRCamera3D` y = altitude(T) + 2.0 + 1.6
   (+-1 cm) and the boulders stay on T.
 - AC-48 (Logic) Absorb takes the top object only: synthoid on 2 boulders gives +3
   then +2, +2 in three absorbs; absorbing your own tile fails (boulders under you
   stay); creating then absorbing a boulder or synthoid returns exactly the
   energy spent (conservation).
-- AC-49 (Logic) A stack of 6 boulders (3 m) on a tile between the eye and a
+- AC-49 (Logic) A stack of 6 boulders (6 m) on a tile between the eye and a
   tile behind it makes that tile not visible; removing the boulders makes it
   visible again.
 - AC-50 (Logic) Energy math: with energy 2 a boulder can be created and a
@@ -637,14 +637,26 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   the two flat colours; all vertices of a non-flat tile use the slope colour;
   the three colours are mutually different.
 - AC-68 (Scene) After a transfer onto a flat tile next to sloped tiles,
-  `XROrigin3D` y equals the flat altitude (+ 0.5 per boulder) exactly (1 cm),
+  `XROrigin3D` y equals the flat altitude (+ 1.0 per boulder) exactly (1 cm),
   never an interpolated slope value, and `XRCamera3D` y is that + 1.6.
 - AC-69 (Build) `README.md` World paragraph mentions "slopes" or "sloping" and
   "flat" (grep gate in `tools/check-test-gate.sh`), and no longer says "columns".
 
+*Boulder height (board finding)*
+
+- AC-70 (Logic) One boulder lets you see over a 2 m step. Flat grid, player on
+  tile A at altitude h, tile B next to it at h + 2, target tile C behind B at
+  h + 2 (a plateau). With no boulder under A the eye is at h + 1.6 and C is not
+  visible; with one boulder under A (eye h + 2.6) C is visible. With B at h + 3
+  one boulder is not enough (eye h + 2.6) and two are (eye h + 3.6).
+- AC-71 (Logic) A synthoid on one boulder, once moved into, gives the same eye:
+  create a boulder and a synthoid on tile T at altitude h, `move(T)`:
+  `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
+  height h + 2 two tiles away is visible from there but not from the tile T
+  without the boulder.
 *Lobby placement (board finding)*
 
-- AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
+- AC-72 (Scene) At load the lobby panel is within 5 degrees of the camera's
   horizontal forward direction, 2.0 to 3.5 m away, at eye height and facing the
   player; it does not move when the camera or the rig yaws afterwards; and
   placing it again from any rig yaw (90, 180, -137 degrees) puts it in front of
@@ -701,7 +713,7 @@ confirmation of button mapping and comfort is a manual post-release check;
 terrain must be a merged mesh (AC-39) because 961 separate tile nodes would
 exceed the Quest draw-call budget.
 
-| 33 | Boulders | create 2, absorb 2, stack 0.5, objects sit on boulders | same, 6 per tile max | Align; the cap of 6 is ours (comfort and draw cost) |
+| 33 | Boulders | create 2, absorb 2, stack 0.5, objects sit on boulders | same, 6 per tile max, 1.0 m per boulder | Align on energy; departure on height (board: 0.5 m was too short to see over the next altitude step) and the cap of 6 is ours (comfort and draw cost) |
 | 34 | Create on own tile | own tile not targetable | boulder allowed on own tile, raises the eye | Departure (board request): gives a way to climb without a second body; energy cost stops abuse |
 | 35 | Creating trees | player can create trees (T) | cannot | Departure (board request) |
 | 36 | Create keys | R, T, B | trigger + grip mode toggle | Departure: VR controls |
@@ -785,4 +797,6 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-67 | `test_ac_67_terrain_colours.gd` | `ac_67 ...` PASS lines |
 | AC-68 | `test_ac_68_move_flat_height.gd` | `ac_68 ...` PASS lines |
 | AC-69 | `tools/check-test-gate.sh` (`mise run test-gate`) | `README GATE OK` line |
-| AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
+| AC-70 | `test_ac_logic.gd` | `ac_70_boulder_sees_over_step` |
+| AC-71 | `test_ac_logic.gd` | `ac_71_synthoid_on_boulder_eye` |
+| AC-72 | `test_ac_72_lobby_panel_placement.gd` | `ac_72 ...` PASS lines |

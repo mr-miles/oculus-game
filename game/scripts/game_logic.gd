@@ -8,7 +8,7 @@ extends RefCounted
 const SYNTHOID_COST := 3
 const BOULDER_COST := 2
 const BOULDER_ENERGY := 2
-const BOULDER_HEIGHT := 0.5          # metres per boulder
+const BOULDER_HEIGHT := 1.0          # metres per boulder (one altitude step)
 const MAX_BOULDERS_PER_TILE := 6
 const TREE_ENERGY := 1
 const SYNTHOID_ENERGY := 3
@@ -26,6 +26,7 @@ const EYE := 1.6           # player eye above a tile top, metres
 const SENTINEL_EYE := 2.2  # sentinel eye above its tile top, metres
 const TREE_HEIGHT := 3.0   # trees block sight up to this far above their tile
 const TILE := 2.0          # tile edge, metres
+const SIGHT_STEP := 0.1    # horizontal sampling step of sight lines, metres (SPEC: 0.25 m or finer)
 
 const MSG_NO_TARGET := "Aim at a blue synthoid you can see"
 const MSG_HIDDEN := "You can't see that tile"
@@ -160,7 +161,7 @@ func boulder_count(t: Vector2i) -> int:
 
 
 func stack_height(t: Vector2i) -> float:
-	## Tile altitude plus half a metre per boulder on it.
+	## Tile altitude plus BOULDER_HEIGHT per boulder on it.
 	return float(height(t)) + BOULDER_HEIGHT * boulder_count(t)
 
 
@@ -246,10 +247,10 @@ func can_see(t: Vector2i) -> bool:
 
 func _clear(from: Vector3, to: Vector3, skip_a: Vector2i, skip_b: Vector2i) -> bool:
 	## True if the segment from->to passes above the ground surface, boulders
-	## and trees, except over the two skipped end tiles. Sampled every 0.25 m
+	## and trees, except over the two skipped end tiles. Sampled every SIGHT_STEP
 	## horizontally.
 	var reach := Vector2(to.x - from.x, to.z - from.z).length()
-	var steps := maxi(48, int(ceil(reach / 0.25)))
+	var steps := maxi(48, int(ceil(reach / SIGHT_STEP)))
 	for i in range(1, steps):
 		var p := from.lerp(to, float(i) / steps)
 		var c := Vector2i(int(floor(p.x / TILE)), int(floor(p.z / TILE)))

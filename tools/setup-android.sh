@@ -26,7 +26,7 @@ if [ ! -d "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION" ]; then
   SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME"
   yes | $SM --licenses >/dev/null || true
   # sdkmanager redraws a progress bar with carriage returns; keep only the lines that matter.
-  $SM "platform-tools" "build-tools;$BUILD_TOOLS_VERSION" "platforms;android-35" 2>&1 \
+  $SM "platform-tools" "build-tools;$BUILD_TOOLS_VERSION" "platforms;android-36" 2>&1 \
     | tr '\r' '\n' | grep -E "Installing|Warning|Error|error" | sort -u || true
 fi
 
