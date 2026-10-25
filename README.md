@@ -34,7 +34,7 @@ explains every failed action.
 
 | Input | Action |
 |---|---|
-| Right ray | Yellow disc = flat tile you can see, red = flat but hidden, grey = sloped ("Needs flat ground") |
+| Right ray | Yellow disc = flat tile you can see, red = flat but hidden; no disc on sloped land (a press says "Needs flat ground"). The left ray has an orange disc on flat tiles |
 | Right trigger | Create what the mode says on the aimed tile: a synthoid (blue body, 3 energy) or a boulder (grey slab 1.0 m high, 2 energy, up to 6 per tile, also under your own feet to climb); after a loss, try the level again |
 | Right grip | Switch the create mode Synthoid <-> Boulder (shown on the HUD; a translucent ghost shows what you will make) |
 | Right A | Move into the aimed synthoid (0.2 s fade) |

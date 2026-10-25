@@ -14,6 +14,8 @@ const COLOR_BOULDER := Color(0.55, 0.55, 0.58)
 const SENTINEL_HEIGHT := 3.0
 const FADE_SECONDS := 0.2
 const CLEARED_SECONDS := 3.0
+const START_SECONDS := 5.0  # how long the level start board counts down
+const CARD_DISTANCE := 2.5  # metres in front of you that cards are placed
 const DEFLATE_SECONDS := 0.8  # an absorbed Sentinel sags and shrinks away over this long
 const RAY_REACH := 90.0
 const RAY_STEP := 0.2
@@ -46,7 +48,11 @@ var _ending: Label3D
 var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
 var _sentinels := {}  # Vector2i -> Node3D
 var _deflating: Array = []  # [Node3D, seconds left] for Sentinels being absorbed
-var _won_card: Label3D  # big "Hill cleared!" in the middle of the view
+var _won_card: Label3D  # big "Hill cleared!" card, fixed in the world in front of you
+var _lost_card: Label3D  # "You ran out of energy" card, same
+var _start_card: Label3D  # level number, Sentinels and a 5 s countdown at the start of a level
+var _start_left := -1.0  # seconds of the start countdown left; < 0 = not showing
+var _start_wait := 0  # advance() calls before the board is placed (the headset needs a moment to track)
 var _boulders := {}   # Vector2i -> Node3D (a stack), with meta "count"
 var _ghost: MeshInstance3D
 var _message := ""
@@ -92,6 +98,33 @@ func _disc(radius: float, height: float) -> CylinderMesh:
 	return c
 
 
+func _make_card(card_name: String, font_size: int, pixel_size: float, colour: Color, outline: int) -> Label3D:
+	## A big message that is placed once in front of you (see _place_card) and then stays put.
+	var l := Label3D.new()
+	l.name = card_name
+	l.font_size = font_size
+	l.pixel_size = pixel_size
+	l.outline_size = outline
+	l.modulate = colour
+	l.no_depth_test = true
+	l.render_priority = 13
+	l.visible = false
+	add_child(l)
+	return l
+
+
+func _place_card(card: Label3D, text: String, drop := 0.0) -> void:  # drop: extra metres below the default
+	## Show `card` CARD_DISTANCE in front of where you look now (camera yaw), a little below eye
+	## level (minus `drop`), facing you. It stays fixed in the world; turning your head does not move it.
+	var cam := rig.camera.global_transform
+	var forward := Vector3(-cam.basis.z.x, 0, -cam.basis.z.z)
+	forward = forward.normalized() if forward.length() > 0.001 else Vector3(0, 0, -1)
+	var at := cam.origin + forward * CARD_DISTANCE + Vector3(0, -0.3 - drop, 0)
+	card.look_at_from_position(at, at + forward, Vector3.UP)
+	card.text = text
+	card.visible = true
+
+
 func _build_overlays() -> void:
 	_fade = Scenery.mesh_node("Vignette", QuadMesh.new(), Color.BLACK, Vector3(0, 0, -0.3))
 	(_fade.mesh as QuadMesh).size = Vector2(2, 2)
@@ -109,29 +142,11 @@ func _build_overlays() -> void:
 	_watch_vignette.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_watch_vignette.visible = false
 	rig.camera.add_child(_watch_vignette)
-	_ending = Label3D.new()
-	_ending.name = "EndingCard"
+	_ending = _make_card("EndingCard", 56, 0.0015, Color.WHITE, 0)
 	_ending.text = "The valley is bright again!\nThe Sentinels are friendly beacons now.\nThank you for playing."
-	_ending.font_size = 56
-	_ending.pixel_size = 0.0015
-	_ending.no_depth_test = true
-	_ending.render_priority = 12
-	_ending.position = Vector3(0, 0.25, -1.2)
-	_ending.visible = false
-	rig.camera.add_child(_ending)
-	_won_card = Label3D.new()
-	_won_card.name = "WonCard"
-	_won_card.font_size = 160
-	_won_card.pixel_size = 0.002
-	_won_card.outline_size = 36
-	_won_card.modulate = Color(1, 0.95, 0.4)
-	_won_card.no_depth_test = true
-	_won_card.render_priority = 13
-	_won_card.position = Vector3(0, 0.1, -2.0)
-	_won_card.visible = false
-	_watch_amount = 0.0
-	_watch_vignette.visible = false
-	rig.camera.add_child(_won_card)
+	_won_card = _make_card("WonCard", 160, 0.002, Color(1, 0.95, 0.4), 36)
+	_lost_card = _make_card("LostCard", 110, 0.002, Color(1, 0.4, 0.35), 30)
+	_start_card = _make_card("StartCard", 120, 0.002, Color(1, 1, 1), 30)
 	menu = Menu3D.new(Vector2(1.0, 0.75))
 	menu.name = "PauseMenu"
 	menu.add_label("Title", Vector2(0, 0.28), 56).text = "Paused"
@@ -159,10 +174,16 @@ func _enter(level_logic: GameLogic) -> void:
 	_fade_left = -1.0
 	_ending.visible = false
 	_won_card.visible = false
+	_lost_card.visible = false
+	_watch_amount = 0.0
+	_watch_vignette.visible = false
 	_deflating.clear()  # the old world (and these nodes with it) is freed by _build_world
 	_set_paused(false)
 	_build_world()
 	rig.place_at(logic.top_position(logic.player_tile))
+	_start_card.visible = false
+	_start_left = START_SECONDS
+	_start_wait = 30 if rig.xr_active else 0  # on a headset wait ~0.4 s so the view is tracked before placing it
 	refresh()
 
 
@@ -322,7 +343,27 @@ func aim_at(tile: Vector2i) -> void:
 	_aim_forced = true
 
 
+func _step_start_card(seconds: float) -> void:
+	## The level start board: level, Sentinels and a countdown from 5; it hides itself at 0.
+	if _start_left < 0.0:
+		return
+	if _start_wait > 0:
+		_start_wait -= 1
+		return
+	if not _start_card.visible:
+		_place_card(_start_card, "")
+	else:
+		_start_left -= seconds
+	if _start_left <= 0.0:
+		_start_left = -1.0
+		_start_card.visible = false
+		return
+	_start_card.text = "Level %d of %d\n%d Sentinel%s\nStarting in %d" % [logic.level, Levels.COUNT, sentinels_total,
+			"" if sentinels_total == 1 else "s", ceili(_start_left)]
+
+
 func advance(seconds: float) -> void:
+	_step_start_card(seconds)
 	_step_fade(seconds)
 	_step_watch_vignette(seconds)
 	_step_deflate(seconds)
@@ -491,13 +532,14 @@ func _announce_state() -> void:
 			_ending.visible = true
 		else:
 			_message = "Hill cleared!"
-		_won_card.text = _message
-		_won_card.visible = true
-		_ending.position = Vector3(0, -0.35, -1.2)
+		_place_card(_won_card, _message)
+		if _ending.visible:
+			_place_card(_ending, _ending.text, 0.8)
 		_cleared_left = CLEARED_SECONDS
 	else:
 		sfx.play("lose")
 		_message = MSG_LOST
+		_place_card(_lost_card, "You ran out of energy.\nPull the trigger to try again.")
 
 
 func _step_flow(seconds: float) -> void:
@@ -562,15 +604,15 @@ func _process(delta: float) -> void:
 		menu.highlight(menu.pick(rig.ray_origin(), rig.ray_direction()))
 		return
 	var lt := aimed_tile("left")
-	_cursor_left.visible = logic.in_bounds(lt)
-	if _cursor_left.visible:
+	_cursor_left.visible = logic.in_bounds(lt) and logic.is_flat(lt)  # no circle on sloped land
+	if logic.in_bounds(lt):
 		_cursor_left.position = logic.top_position(lt) + Vector3(0, 0.05, 0)
 		rig.set_ray_length(maxf(rig.ray_origin("left").distance_to(_cursor_left.position), 0.2), "left")
 	else:
 		rig.set_ray_length(3.0, "left")
 	var t := aimed_tile()
 	if logic.in_bounds(t):
-		_cursor.visible = true
+		_cursor.visible = logic.is_flat(t)  # no circle on sloped land
 		_cursor.position = logic.top_position(t) + Vector3(0, 0.03, 0)
 		var c := _disc_colour(t)
 		(_cursor.material_override as StandardMaterial3D).albedo_color = c

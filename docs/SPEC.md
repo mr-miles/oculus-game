@@ -205,7 +205,7 @@ hide what is behind a ridge, and a valley lets you see across it.
 **Aim and what can be targeted.** The aimed tile is the first tile where the
 aim ray goes at or below the surface height (not a column top). Any tile can
 be aimed at, flat or not. Flat and visible: yellow disc; flat and hidden: red
-disc; not flat: **grey** disc at the tile centre's surface height, and every
+disc; not flat: **no disc** (board finding: no aim circles on sloped land), and every
 action on it fails with the message "Needs flat ground". Create, transfer and
 absorb apply to flat tiles only (a sloped tile never has an object).
 
@@ -629,7 +629,7 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   apex = 1 (a valley).
 - AC-65 (Scene) Aim on a slope with a real controller pose (no `aim_at`): a
   right-hand ray pointing at the centre of a sloped tile makes it the aimed
-  tile; the disc is grey; `press("trigger_click")`, `press("ax_button")` and
+  tile; no disc is shown (neither hand); `press("trigger_click")`, `press("ax_button")` and
   `press("trigger_left_click")` change nothing and set `HudMessage` containing "Needs
   flat ground". A ray at a flat visible tile shows a yellow disc, at a hidden
   one a red disc.
@@ -693,6 +693,20 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   towards the middle (`WatchVignette`, head-locked; it eases in over 0.3 s and out
   over 0.5 s); it is hidden when nobody sees you, when paused and after a level
   loads. The red border and countdown of the HUD stay.
+
+*Message cards, start board, aim circles (board findings)*
+
+- AC-80 (Scene) The win card ("Hill cleared!", "You freed the valley!" plus the
+  ending text), the lose card ("You ran out of energy. Pull the trigger to try
+  again.") and the level start board are placed once, 2.5 m in front of where you
+  look (camera yaw, a little below eye level, under the HUD) and then stay fixed in the world: they
+  do not follow the head and are not children of the camera. The start board
+  shows "Level n of 10", "k Sentinel(s)" and "Starting in 5" counting down to 1,
+  then disappears after 5 s (play is not blocked meanwhile; Sentinels stay idle
+  until your first action anyway). On a headset it is placed after about 0.4 s,
+  once the view is tracked. The aim circles (yellow/red for the right hand,
+  orange for the left) are shown on flat tiles only; on sloped land there is no
+  circle (the ray remains and a trigger press still says "Needs flat ground").
 
 *Lobby placement (board finding)*
 
@@ -861,3 +875,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-77 | `test_ac_77_wind.gd` | `ac_77 ...` PASS lines |
 | AC-78 | `test_ac_78_desert.gd` | `ac_78 ...` PASS lines |
 | AC-79 | `test_ac_79_watch_vignette.gd` | `ac_79 ...` PASS lines |
+| AC-80 | `test_ac_80_cards_and_start_board.gd` | `ac_80 ...` PASS lines |

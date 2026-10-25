@@ -1,5 +1,5 @@
 extends ViewTest
-## AC-65: a real controller ray aims at sloped tiles (grey disc, "Needs flat ground"); flat tiles are yellow or red.
+## AC-65: a real controller ray aims at sloped tiles (no aim circle, "Needs flat ground"); flat tiles are yellow or red.
 
 func _disc(g: Node) -> Color:
 	return ((g.find_child("Cursor", true, false) as MeshInstance3D).material_override as StandardMaterial3D).albedo_color
@@ -11,8 +11,8 @@ func _init() -> void:
 	check("ac_65 level has a sloped tile", sloped.x >= 0)
 	check("ac_65 the ray makes the sloped tile the aimed tile", ray_down_at(g, sloped) == sloped)
 	await process_frame
-	var grey := _disc(g)
-	check("ac_65 disc is grey", absf(grey.r - grey.g) < 0.05 and absf(grey.g - grey.b) < 0.05)
+	check("ac_65 no aim circle on sloped land (either hand)", not (g.find_child("Cursor", true, false) as Node3D).visible
+			and not (g.find_child("CursorLeft", true, false) as Node3D).visible)
 	var energy: int = g.logic.energy
 	var trees: int = g.logic.trees.size()
 	var tile: Vector2i = g.logic.player_tile

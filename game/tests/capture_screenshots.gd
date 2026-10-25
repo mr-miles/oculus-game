@@ -46,6 +46,9 @@ func _level_shots() -> void:
 	var start: Vector2i = logic.player_tile
 	var tree: Vector2i = logic.trees.keys()[0]
 	_face(g, start, tree)
+	g.advance(1.0)  # the level start board, counting down
+	await _shot("level-start-board")
+	g.advance(5.0)
 	await _shot("hud-start")
 	g.press("by_left_button")  # Y: the pause menu appears in front of you, fixed in the world
 	await _shot("pause-menu")

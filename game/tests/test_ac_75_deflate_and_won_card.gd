@@ -27,6 +27,6 @@ func _init() -> void:
 	check("ac_75 won card visible", card.visible)
 	check("ac_75 won card text is Hill cleared!", card.text == "Hill cleared!")
 	var p := cam.global_transform.affine_inverse() * card.global_position
-	check("ac_75 won card is in the middle of the view (%.2f, %.2f)" % [p.x, p.y], absf(p.x) < 0.3 and absf(p.y) < 0.5 and p.z < -1.0)
+	check("ac_75 won card is in the middle of the view (%.2f, %.2f)" % [p.x, p.y], absf(p.x) < 0.3 and absf(p.y) < 0.6 and p.z < -1.0)
 	check("ac_75 won card text is large (>= 2x HUD text)", card.font_size * card.pixel_size * 3.0 >= 44 * 0.0012 * 2.7 * 2.0 * 0.9)
 	finish()
