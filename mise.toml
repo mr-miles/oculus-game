@@ -5,19 +5,21 @@
 # download checksums are pinned in mise.lock (tools) and tools/setup-android.sh
 # (SDK, export templates).
 
+min_version = "2026.10.19"
+
 [settings]
 lockfile = true
 # The lock covers only the platforms this project is built on (the java metadata
 # has no entry for others, e.g. linux-arm64, and mise would fail trying to add them).
-lockfile_platforms = ["linux-x64", "macos-arm64"]
+lockfile_platforms = ["linux-x64"]
 experimental = true
 
 [tools]
-java = "temurin-17.0.21+9"
+java = "temurin-21.0.13+9"       # newest LTS Gradle 8.11.1 (pinned by Godot 4.7.2) can run on; 25 needs Gradle 9
 godot = "4.7.2-stable"            # aqua registry: godotengine/godot, Linux x86_64 editor
 
-# Android command-line tools (revision 11076708); sdkmanager installs the rest in `setup`.
-"http:android-cmdline-tools" = { version = "11076708", url = "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip", checksum = "sha256:2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258" }
+# Android command-line tools (revision 23.0, build 16111833); sdkmanager installs the rest in `setup`.
+"http:android-cmdline-tools" = { version = "16111833", url = "https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip", checksum = "sha256:0877a1d048fe4a24efe2eff536ca4223f7adeb58648bb81909d33c446918cfa8" }
 
 # OpenXR Vendors plugin, copied into the project at build time.
 "http:godot-openxr-vendors" = { version = "5.1.0-stable", url = "https://github.com/GodotVR/godot_openxr_vendors/releases/download/5.1.0-stable/godotopenxrvendorsaddon.zip", checksum = "sha256:6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911" }

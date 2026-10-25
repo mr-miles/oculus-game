@@ -7,18 +7,19 @@ on:
 
 jobs:
   apk:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v5
         with:
+          version: 2026.10.19
           install: true
           cache: true
 
       - name: Cache Android SDK, Gradle and Godot templates
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .toolchain
           key: toolchain-${{ runner.os }}-${{ hashFiles('mise.toml', 'tools/setup-android.sh') }}
@@ -27,7 +28,7 @@ jobs:
         run: mise run ci
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quest-sentinel-debug-apk
           path: game/build/quest-sentinel.apk

@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export REPO_ROOT
 export GAME="$REPO_ROOT/game"
 export GODOT_TEMPLATE_DIR=4.7.2.stable
-export BUILD_TOOLS_VERSION=35.0.1
+export BUILD_TOOLS_VERSION=36.1.0  # what the Godot 4.7.2 Android template asks for
 : "${ANDROID_HOME:?run through mise: mise run setup / build}"
 : "${TOOLCHAIN_DIR:?run through mise}"
 # The aqua package ships the editor as Godot_v<version>_linux.x86_64 (no `godot` alias).
