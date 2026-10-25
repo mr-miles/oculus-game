@@ -654,6 +654,13 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
+*Ambient wind (board finding)*
+
+- AC-77 (Scene) The lobby and every level play a gentle wind: a generated 8 s
+  loop of low-pass filtered noise with slow gusts (no audio files), started
+  automatically, looping seamlessly (end and start samples match), audible but
+  quiet (-22 dB player volume). It is separate from the action sounds.
+
 *Lobby placement (board finding)*
 
 - AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
@@ -807,4 +814,5 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
+| AC-77 | `test_ac_77_wind.gd` | `ac_77 ...` PASS lines |
 | AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |

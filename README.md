@@ -43,7 +43,7 @@ explains every failed action.
 | Left Y | Pause menu in front of you, fixed in the world: Resume / Restart level / Back to lobby |
 | Left X | Hint for the current situation |
 
-Each action plays its own placeholder sound and a short controller pulse.
+A gentle generated wind loops quietly in the background, in the lobby and in the levels. Each action plays its own placeholder sound and a short controller pulse.
 Absorb every Sentinel to clear a hill; clearing level 10 shows the ending card
 and returns to the lobby.
 

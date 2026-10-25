@@ -33,6 +33,7 @@ var _diagram: Node3D
 
 func _ready() -> void:
 	Scenery.add_sky(self)
+	add_child(Wind.new())
 	add_child(Scenery.mesh_node("Hill", _hill_mesh(), Color(0.25, 0.55, 0.3), Vector3(0, -5.0, 0)))
 	rig = Rig.new()
 	add_child(rig)

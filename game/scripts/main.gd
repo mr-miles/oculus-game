@@ -61,6 +61,7 @@ func _ready() -> void:
 	rig.snap.connect(func(d: int) -> void: _dispatch("stick_right" if d > 0 else "stick_left"))
 	sfx = Sfx.new()
 	add_child(sfx)
+	add_child(Wind.new())
 	hud = Hud.new()
 	rig.camera.add_child(hud)
 	_build_overlays()
