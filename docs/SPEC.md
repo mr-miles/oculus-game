@@ -662,6 +662,13 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   placing it again from any rig yaw (90, 180, -137 degrees) puts it in front of
   the camera.
 
+*Pause menu placement (board finding)*
+
+- AC-73 (Scene) When Y opens the pause menu it appears within 5 degrees of the
+  camera's horizontal forward direction, 1.0 to 2.5 m away, at eye height and
+  facing the player, at any rig yaw; it is fixed in the world (turning the head
+  or rig afterwards does not move it) and is placed again each time it opens.
+
 Known simplification (kept from the prototype): visibility tests only whether
 terrain or a tree blocks the line to a tile's top centre; the target tile's
 own surface never blocks. A Sentinel standing higher than the player is
@@ -800,3 +807,4 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
+| AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |

@@ -22,6 +22,8 @@ const COLOR_TREE := Color(0.1, 0.8, 0.2)
 const COLOR_SENTINEL := Color(0.8, 0.15, 0.15)
 const COLOR_NOSE := Color(1, 0.9, 0.2)
 
+const PAUSE_DISTANCE := 1.5  # metres in front of the player when the pause menu opens
+
 var start_level := 1          ## set by the lobby before the node enters the tree
 var auto_advance := true      ## tests turn this off and call advance() themselves
 var logic: GameLogic
@@ -99,14 +101,13 @@ func _build_overlays() -> void:
 	rig.camera.add_child(_ending)
 	menu = Menu3D.new(Vector2(1.0, 0.75))
 	menu.name = "PauseMenu"
-	menu.position = Vector3(0, 0, -1.0)
 	menu.add_label("Title", Vector2(0, 0.28), 56).text = "Paused"
 	menu.add_button("ResumeButton", "resume", "Resume", Vector2(0, 0.12), Vector2(0.7, 0.14))
 	menu.add_button("RestartButton", "restart", "Restart level", Vector2(0, -0.06), Vector2(0.7, 0.14))
 	menu.add_button("LobbyButton", "lobby", "Back to lobby", Vector2(0, -0.24), Vector2(0.7, 0.14))
 	menu.chosen.connect(_on_pause_choice)
 	menu.visible = false
-	rig.camera.add_child(menu)
+	add_child(menu)  # fixed in the world; _place_pause_menu puts it in front of you on open
 
 
 # --- levels -----------------------------------------------------------------
@@ -341,7 +342,20 @@ func _on_pause_choice(id: String) -> void:
 
 func _set_paused(on: bool) -> void:
 	paused = on
+	if on:
+		_place_pause_menu()
 	menu.visible = on
+
+
+func _place_pause_menu() -> void:
+	## Put the pause menu in front of where the player looks now, at eye height,
+	## facing them, and leave it fixed in the world (a menu that follows the head
+	## cannot be aimed at). Uses the camera's yaw, so it is right at any rig yaw.
+	var cam := rig.camera.global_transform
+	var forward := Vector3(-cam.basis.z.x, 0, -cam.basis.z.z)
+	forward = forward.normalized() if forward.length() > 0.001 else Vector3(0, 0, -1)
+	var at := cam.origin + forward * PAUSE_DISTANCE
+	menu.look_at_from_position(at, at + forward, Vector3.UP)  # front (+z) faces the player
 
 
 func _check_tile(action: Callable) -> String:

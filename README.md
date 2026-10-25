@@ -40,7 +40,7 @@ explains every failed action.
 | Right A | Move into the aimed synthoid (0.2 s fade) |
 | Right B | Absorb the top object of the aimed tile: tree (+1), boulder (+2), synthoid (+3) or Sentinel (+4) |
 | Left stick left/right | Snap turn 30 degrees |
-| Left Y | Pause menu: Resume / Restart level / Back to lobby |
+| Left Y | Pause menu in front of you, fixed in the world: Resume / Restart level / Back to lobby |
 | Left X | Hint for the current situation |
 
 Each action plays its own placeholder sound and a short controller pulse.
