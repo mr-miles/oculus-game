@@ -644,19 +644,19 @@ steps). AC-57 now also guarantees that sloped tiles exist.
 
 *Boulder height (board finding)*
 
-- AC-70 (Logic) One boulder lets you see over a 2 m step. Flat grid, player on
+- AC-71 (Logic) One boulder lets you see over a 2 m step. Flat grid, player on
   tile A at altitude h, tile B next to it at h + 2, target tile C behind B at
   h + 2 (a plateau). With no boulder under A the eye is at h + 1.6 and C is not
   visible; with one boulder under A (eye h + 2.6) C is visible. With B at h + 3
   one boulder is not enough (eye h + 2.6) and two are (eye h + 3.6).
-- AC-71 (Logic) A synthoid on one boulder, once moved into, gives the same eye:
+- AC-72 (Logic) A synthoid on one boulder, once moved into, gives the same eye:
   create a boulder and a synthoid on tile T at altitude h, `move(T)`:
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
 *Lobby placement (board finding)*
 
-- AC-72 (Scene) At load the lobby panel is within 5 degrees of the camera's
+- AC-70 (Scene) At load the lobby panel is within 5 degrees of the camera's
   horizontal forward direction, 2.0 to 3.5 m away, at eye height and facing the
   player; it does not move when the camera or the rig yaws afterwards; and
   placing it again from any rig yaw (90, 180, -137 degrees) puts it in front of
@@ -797,6 +797,6 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-67 | `test_ac_67_terrain_colours.gd` | `ac_67 ...` PASS lines |
 | AC-68 | `test_ac_68_move_flat_height.gd` | `ac_68 ...` PASS lines |
 | AC-69 | `tools/check-test-gate.sh` (`mise run test-gate`) | `README GATE OK` line |
-| AC-70 | `test_ac_logic.gd` | `ac_70_boulder_sees_over_step` |
-| AC-71 | `test_ac_logic.gd` | `ac_71_synthoid_on_boulder_eye` |
-| AC-72 | `test_ac_72_lobby_panel_placement.gd` | `ac_72 ...` PASS lines |
+| AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
+| AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
+| AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |

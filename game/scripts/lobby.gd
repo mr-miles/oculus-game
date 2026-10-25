@@ -15,7 +15,8 @@ const PANEL_SIZE := Vector2(2.0, 1.5)
 ## without turning the head, and text 1.4x taller than at 2 m.
 const PANEL_DISTANCE := 2.5
 const PANEL_SCALE := 1.4
-const SETTLE_FRAMES := 30  ## in a headset, wait this long for head tracking before placing the panel
+const SETTLE_FRAMES := 30   ## in a headset, wait this long for head tracking before placing the panel
+const GIVE_UP_FRAMES := 300  ## ...but place it anyway after this long, so the lobby is never blank
 
 var rig: Rig
 var panel: Menu3D
@@ -154,7 +155,8 @@ func _on_button(button: String) -> void:
 func _process(_delta: float) -> void:
 	if not placed:
 		_frames += 1
-		if not rig.xr_active or (_frames >= SETTLE_FRAMES and rig.camera.position.length() > 0.01):
+		if not rig.xr_active or _frames >= GIVE_UP_FRAMES \
+				or (_frames >= SETTLE_FRAMES and rig.camera.position.length() > 0.01):
 			place_panel()
 		else:
 			return

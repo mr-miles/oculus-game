@@ -673,30 +673,30 @@ func step_grid(from_cx: int, top: int) -> GameLogic:
 	return g
 
 
-func ac_70_boulder_sees_over_step() -> void:
+func ac_71_boulder_sees_over_step() -> void:
 	var plateau := Vector2i(4, 1)
 	var g := step_grid(3, 2)
-	check("ac_70 2 m step, no boulder: plateau hidden", not g.can_see(plateau))
+	check("ac_71 2 m step, no boulder: plateau hidden", not g.can_see(plateau))
 	g.boulders[g.player_tile] = 1
-	check("ac_70 2 m step, one boulder: plateau visible", g.can_see(plateau))
+	check("ac_71 2 m step, one boulder: plateau visible", g.can_see(plateau))
 	g = step_grid(3, 3)
 	g.boulders[g.player_tile] = 1
-	check("ac_70 3 m step, one boulder: still hidden", not g.can_see(plateau))
+	check("ac_71 3 m step, one boulder: still hidden", not g.can_see(plateau))
 	g.boulders[g.player_tile] = 2
-	check("ac_70 3 m step, two boulders: visible", g.can_see(plateau))
+	check("ac_71 3 m step, two boulders: visible", g.can_see(plateau))
 
 
-func ac_71_synthoid_on_boulder_eye() -> void:
+func ac_72_synthoid_on_boulder_eye() -> void:
 	var g := step_grid(4, 2)
 	sentinel(g, Vector2i(11, 11), 0.0)
 	g.awake = false
 	g.energy = 20
 	var t := Vector2i(2, 1)
 	var plateau := Vector2i(4, 1)
-	check("ac_71 create boulder and synthoid on T", g.create(t, "boulder") == "" and g.create(t) == "")
-	check("ac_71 move into T", g.move(t) == "" and g.boulder_count(t) == 1)
-	check("ac_71 eye is altitude + 1.0 + 1.6", is_equal_approx(g.eye_position().y, 2.6))
-	check("ac_71 plateau visible from the stack", g.can_see(plateau))
+	check("ac_72 create boulder and synthoid on T", g.create(t, "boulder") == "" and g.create(t) == "")
+	check("ac_72 move into T", g.move(t) == "" and g.boulder_count(t) == 1)
+	check("ac_72 eye is altitude + 1.0 + 1.6", is_equal_approx(g.eye_position().y, 2.6))
+	check("ac_72 plateau visible from the stack", g.can_see(plateau))
 	var plain := step_grid(4, 2)
 	plain.player_tile = t
-	check("ac_71 plateau hidden from T without the boulder", not plain.can_see(plateau))
+	check("ac_72 plateau hidden from T without the boulder", not plain.can_see(plateau))
