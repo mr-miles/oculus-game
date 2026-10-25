@@ -1,13 +1,13 @@
 class_name Hud
 extends Node3D
-## Head-locked heads-up display, 2.5 m ahead and large enough to read. Add as a child of the XR camera. Shows energy
+## Head-locked heads-up display, 4 m ahead and large enough to read. Add as a child of the XR camera. Shows energy
 ## (number and bar), level, sentinels left, a watched warning and one message.
 ## Label3D anchors left-aligned text at its left edge and right-aligned at its right edge.
 
 const PIXEL := 0.0012
-const DISTANCE := 2.5      # metres in front of the eyes (was 1.2: too close to read)
-const HEIGHT := 0.9        # metres above the gaze line (about 20 degrees up, as before)
-const HUD_SCALE := 3.2     # the layout below is in 1.2 m units; this makes it about 1.5x larger on screen
+const DISTANCE := 4.0      # metres in front of the eyes (was 1.2, then 2.5: still too close)
+const HEIGHT := 0.85       # metres above the gaze line: about 12 degrees up (was 20), lower in the view
+const HUD_SCALE := 5.12    # the layout below is in 1.2 m units; the same size on screen as 3.2 at 2.5 m (about 1.5x the first version)
 const BAR_WIDTH := 0.3
 const BAR_X := -0.17
 const WATCH_RED := Color(1, 0.2, 0.2)

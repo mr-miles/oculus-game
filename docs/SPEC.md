@@ -340,8 +340,8 @@ brings the user back here.
 ## 8. HUD (viewport-anchored, at the top)
 
 The HUD is a child of the XR camera (head-locked), never of a controller. It is
-a strip at the **top** of the view: centred 2.5 m in front of the eyes and 0.9 m
-above the centre of gaze (about 20 degrees up), scaled so it looks about 1.5x larger than
+a strip at the **top** of the view: centred 4 m in front of the eyes and 0.85 m
+above the centre of gaze (about 12 degrees up, lower in the view than the first versions), scaled so it looks about 1.5x larger than
 the first version (which sat 1.2 m away and was too close to read), unshaded and drawn on top, so the
 middle of the view stays clear. Contents, always visible: Energy (number and
 bar), Level ("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3
@@ -489,7 +489,7 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 - AC-27 (Scene) `Hud` is a descendant of `XRCamera3D` and not of either controller;
   its local transform is constant while the camera moves.
-- AC-28 (Scene) `Hud` local position is (0, +0.9 +- 0.05, -2.5 +- 0.1), i.e. above
+- AC-28 (Scene) `Hud` local position is (0, +0.85 +- 0.05, -4.0 +- 0.1), i.e. above
   the gaze centre, not below or at it, and its on-screen size (scale / distance) is
   at least 1.5 / 1.2 (about 1.5x the first version; board finding: larger and further).
 - AC-29 (Scene) HUD text shows energy as a number that updates after create
@@ -535,8 +535,8 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 *HUD*
 
 - AC-42 (Scene) `HudEnergy`, `HudLevel`, `HudSentinels`, `HudMode`, `HudWatched`
-  and `HudMessage` each have camera-local y between +0.5 and +1.5 m (at
-  z = -2.5), |x| <= 1.8 m, and between 5 and 35 degrees up and under 38 degrees
+  and `HudMessage` each have camera-local y between +0.2 and +1.8 m (at
+  z = -4.0), |x| <= 3.0 m, and between 3 and 25 degrees up and under 38 degrees
   to the side: all above the gaze line and inside the view.
 - AC-52 (Scene) `HudMode` reads "Create: Synthoid (3)" at level start and after
   a retry, and "Create: Boulder (2)" after one `press("grip_click")`.

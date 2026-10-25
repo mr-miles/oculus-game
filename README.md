@@ -23,7 +23,7 @@ that shows where they look) stand on the highest ground; green **trees** (3 m
 tall: a 1.2 m trunk under a 1.8 m leafy canopy) are scattered about. There are ten levels; rules and level generation are
 in `docs/SPEC.md` (sections 3-4).
 
-**HUD.** A head-locked panel 2.5 m in front of you, large enough to read, above the centre of
+**HUD.** A head-locked panel 4 m in front of you, large enough to read, above the centre of
 gaze so it never covers the ground you are looking at: **Energy** (number and
 bar), **Level n of 10**, **Sentinels: k of N left**, the create mode
 (**Create: Synthoid (3)** or **Create: Boulder (2)**), a red border and
