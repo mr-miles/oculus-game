@@ -14,6 +14,7 @@ const COLOR_BOULDER := Color(0.55, 0.55, 0.58)
 const SENTINEL_HEIGHT := 3.0
 const FADE_SECONDS := 0.2
 const CLEARED_SECONDS := 3.0
+const DEFLATE_SECONDS := 0.8  # an absorbed Sentinel sags and shrinks away over this long
 const RAY_REACH := 90.0
 const RAY_STEP := 0.2
 const MSG_LOST := "You ran out of energy. Pull the trigger to try again."
@@ -42,6 +43,8 @@ var _fade: MeshInstance3D
 var _ending: Label3D
 var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
 var _sentinels := {}  # Vector2i -> Node3D
+var _deflating: Array = []  # [Node3D, seconds left] for Sentinels being absorbed
+var _won_card: Label3D  # big "Hill cleared!" in the middle of the view
 var _boulders := {}   # Vector2i -> Node3D (a stack), with meta "count"
 var _ghost: MeshInstance3D
 var _message := ""
@@ -104,6 +107,17 @@ func _build_overlays() -> void:
 	_ending.position = Vector3(0, 0.25, -1.2)
 	_ending.visible = false
 	rig.camera.add_child(_ending)
+	_won_card = Label3D.new()
+	_won_card.name = "WonCard"
+	_won_card.font_size = 160
+	_won_card.pixel_size = 0.002
+	_won_card.outline_size = 36
+	_won_card.modulate = Color(1, 0.95, 0.4)
+	_won_card.no_depth_test = true
+	_won_card.render_priority = 13
+	_won_card.position = Vector3(0, 0.1, -2.0)
+	_won_card.visible = false
+	rig.camera.add_child(_won_card)
 	menu = Menu3D.new(Vector2(1.0, 0.75))
 	menu.name = "PauseMenu"
 	menu.add_label("Title", Vector2(0, 0.28), 56).text = "Paused"
@@ -130,6 +144,8 @@ func _enter(level_logic: GameLogic) -> void:
 	_cleared_left = -1.0
 	_fade_left = -1.0
 	_ending.visible = false
+	_won_card.visible = false
+	_deflating.clear()  # the old world (and these nodes with it) is freed by _build_world
 	_set_paused(false)
 	_build_world()
 	rig.place_at(logic.top_position(logic.player_tile))
@@ -167,7 +183,7 @@ func _sync_objects() -> void:
 			_markers.erase(k)
 	for k in _sentinels.keys():
 		if logic.sentinel_at(k) < 0:
-			_sentinels[k].queue_free()
+			_start_deflate(_sentinels[k])
 			_sentinels.erase(k)
 	for t in logic.synthoids.keys():
 		if not _markers.has(t):
@@ -246,6 +262,24 @@ func _make_tree(t: Vector2i) -> Node3D:
 	return n
 
 
+func _start_deflate(n: Node3D) -> void:
+	n.name = "Deflating_" + n.name
+	_deflating.append([n, DEFLATE_SECONDS])
+
+
+func _step_deflate(seconds: float) -> void:
+	## Absorbed Sentinels lose their air: they squash down, bulge a little, then vanish.
+	for e in _deflating.duplicate():
+		e[1] -= seconds
+		var n: Node3D = e[0]
+		if e[1] <= 0.0:
+			n.queue_free()
+			_deflating.erase(e)
+			continue
+		var k: float = e[1] / DEFLATE_SECONDS  # 1 -> 0
+		n.scale = Vector3(1.0 + 0.5 * (1.0 - k), maxf(k * k, 0.02), 1.0 + 0.5 * (1.0 - k))
+
+
 func _make_sentinel(t: Vector2i) -> Node3D:
 	var n := Node3D.new()
 	n.name = "Sentinel_%d_%d" % [t.x, t.y]
@@ -273,6 +307,7 @@ func aim_at(tile: Vector2i) -> void:
 
 func advance(seconds: float) -> void:
 	_step_fade(seconds)
+	_step_deflate(seconds)
 	if not paused:
 		if logic.state == "playing":
 			logic.advance(seconds)
@@ -430,6 +465,9 @@ func _announce_state() -> void:
 			_ending.visible = true
 		else:
 			_message = "Hill cleared!"
+		_won_card.text = _message
+		_won_card.visible = true
+		_ending.position = Vector3(0, -0.35, -1.2)
 		_cleared_left = CLEARED_SECONDS
 	else:
 		sfx.play("lose")
