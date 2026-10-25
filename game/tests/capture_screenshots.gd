@@ -65,7 +65,10 @@ func _level_shots() -> void:
 	logic.watched = true
 	logic.watch_ticks = 194  # 5.2 s until the first drain
 	g.refresh()
+	g._step_watch_vignette(1.0)  # the red screen edges, fully in
 	await _shot("hud-watched-sentinel")
+	logic.watched = false
+	g._step_watch_vignette(1.0)
 	# Trees: stand a few tiles back so the whole tree is in view, a synthoid beside it for scale.
 	logic.watched = false
 	var spot := _spot_viewing(logic, tree)
@@ -115,6 +118,10 @@ func _level_shots() -> void:
 	g.rig.origin.global_position = Vector3(logic.size, 2.2 * logic.size, logic.size)
 	g.rig.origin.rotation_degrees = Vector3(-90, 0, 0)
 	await _shot("terrain-top-view")
+	# Out over the edge of the hill: the desert and its haze.
+	g.rig.origin.global_position = Vector3(logic.size * 2.0 + 20.0, 14.0, logic.size)
+	g.rig.origin.rotation_degrees = Vector3(-8, -90, 0)
+	await _shot("desert-view")
 
 
 func _free_neighbour(logic: GameLogic, t: Vector2i) -> Vector2i:

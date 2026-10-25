@@ -40,6 +40,8 @@ var _world: Node3D
 var _cursor: MeshInstance3D
 var _cursor_left: MeshInstance3D  # where the left (absorb) ray lands
 var _fade: MeshInstance3D
+var _watch_vignette: MeshInstance3D  # red screen edges while a Sentinel sees you
+var _watch_amount := 0.0  # 0..1, eased towards 1 while watched
 var _ending: Label3D
 var _markers := {}    # Vector2i -> Node3D (trees, synthoids)
 var _sentinels := {}  # Vector2i -> Node3D
@@ -98,6 +100,15 @@ func _build_overlays() -> void:
 	(_fade.material_override as StandardMaterial3D).render_priority = 100
 	_fade.visible = false
 	rig.camera.add_child(_fade)
+	_watch_vignette = Scenery.mesh_node("WatchVignette", QuadMesh.new(), Color.RED, Vector3(0, 0, -0.3))
+	(_watch_vignette.mesh as QuadMesh).size = Vector2(1.0, 1.0)  # its edge sits near the edge of the view
+	var vm := ShaderMaterial.new()
+	vm.shader = load("res://scripts/edge_vignette.gdshader")
+	vm.render_priority = 99
+	_watch_vignette.material_override = vm
+	_watch_vignette.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_watch_vignette.visible = false
+	rig.camera.add_child(_watch_vignette)
 	_ending = Label3D.new()
 	_ending.name = "EndingCard"
 	_ending.text = "The valley is bright again!\nThe Sentinels are friendly beacons now.\nThank you for playing."
@@ -118,6 +129,8 @@ func _build_overlays() -> void:
 	_won_card.render_priority = 13
 	_won_card.position = Vector3(0, 0.1, -2.0)
 	_won_card.visible = false
+	_watch_amount = 0.0
+	_watch_vignette.visible = false
 	rig.camera.add_child(_won_card)
 	menu = Menu3D.new(Vector2(1.0, 0.75))
 	menu.name = "PauseMenu"
@@ -175,6 +188,9 @@ func _build_world() -> void:
 	var terrain := Terrain.new()
 	_world.add_child(terrain)
 	terrain.build(logic)
+	var desert := Desert.new()
+	_world.add_child(desert)
+	desert.build(logic.size * GameLogic.TILE)
 
 
 func _sync_objects() -> void:
@@ -308,6 +324,7 @@ func aim_at(tile: Vector2i) -> void:
 
 func advance(seconds: float) -> void:
 	_step_fade(seconds)
+	_step_watch_vignette(seconds)
 	_step_deflate(seconds)
 	if not paused:
 		if logic.state == "playing":
@@ -435,6 +452,14 @@ func _hint() -> String:
 func _start_move() -> void:
 	_move_to = logic.player_tile
 	_fade_left = FADE_SECONDS
+
+
+func _step_watch_vignette(seconds: float) -> void:
+	## Red edges fade in (0.3 s) while a Sentinel sees you and out (0.5 s) when it stops.
+	var on := logic.watched and logic.state == "playing" and not paused
+	_watch_amount = move_toward(_watch_amount, 1.0 if on else 0.0, seconds / (0.3 if on else 0.5))
+	_watch_vignette.visible = _watch_amount > 0.0
+	(_watch_vignette.material_override as ShaderMaterial).set_shader_parameter("amount", _watch_amount)
 
 
 func _step_fade(seconds: float) -> void:

@@ -341,7 +341,7 @@ brings the user back here.
 
 The HUD is a child of the XR camera (head-locked), never of a controller. It is
 a strip at the **top** of the view: centred 2.5 m in front of the eyes and 0.9 m
-above the centre of gaze (about 20 degrees up), scaled so it looks about 1.3x larger than
+above the centre of gaze (about 20 degrees up), scaled so it looks about 1.5x larger than
 the first version (which sat 1.2 m away and was too close to read), unshaded and drawn on top, so the
 middle of the view stays clear. Contents, always visible: Energy (number and
 bar), Level ("Level 3 of 10"), **Sentinels left** counter ("Sentinels: 2 of 3
@@ -491,7 +491,7 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
   its local transform is constant while the camera moves.
 - AC-28 (Scene) `Hud` local position is (0, +0.9 +- 0.05, -2.5 +- 0.1), i.e. above
   the gaze centre, not below or at it, and its on-screen size (scale / distance) is
-  at least 1.25 / 1.2 (board finding: larger and further).
+  at least 1.5 / 1.2 (about 1.5x the first version; board finding: larger and further).
 - AC-29 (Scene) HUD text shows energy as a number that updates after create
   and absorb.
 - AC-30 (Scene) `HudSentinels` reads "Sentinels: k of N left" and decrements
@@ -536,7 +536,7 @@ headless; "Scene" = instantiate scene headless with `Main.advance`.
 
 - AC-42 (Scene) `HudEnergy`, `HudLevel`, `HudSentinels`, `HudMode`, `HudWatched`
   and `HudMessage` each have camera-local y between +0.5 and +1.5 m (at
-  z = -2.5), |x| <= 1.6 m, and between 5 and 35 degrees up and under 35 degrees
+  z = -2.5), |x| <= 1.8 m, and between 5 and 35 degrees up and under 38 degrees
   to the side: all above the gaze line and inside the view.
 - AC-52 (Scene) `HudMode` reads "Create: Synthoid (3)" at level start and after
   a retry, and "Create: Boulder (2)" after one `press("grip_click")`.
@@ -658,12 +658,41 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   `eye_position().y` = h + 1.0 + 1.6, the boulder stays on T, and a plateau of
   height h + 2 two tiles away is visible from there but not from the tile T
   without the boulder.
+*Absorb and win feedback (board finding)*
+
+- AC-75 (Scene) An absorbed Sentinel does not vanish at once: for 0.8 s it
+  deflates (its model squashes in height, bulges slightly and shrinks away)
+  before it is removed. Clearing a level shows "Hill cleared!" ("You freed the
+  valley!" after level 10) as a large card (about 2.0 m ahead, centred, bigger than
+  the HUD text) for the 3 s before the next level, in addition to the HUD line.
+
+*Sky and sun (board finding)*
+
+- AC-76 (Scene) The lobby and every level use a shader sky (`scripts/sky.gdshader`:
+  blue gradient, soft clouds that drift with `TIME`, a sun disc where the light
+  points) that re-renders every frame, and a `Sun` DirectionalLight3D with
+  shadows on (one orthogonal cascade, 80 m, 2048 atlas: the Quest 2 budget), so
+  trees, Sentinels, synthoids and boulders cast shadows on the terrain. Tests
+  check the setup; how it looks and runs on a Quest 2 is not measured.
+
 *Ambient wind (board finding)*
 
 - AC-77 (Scene) The lobby and every level play a gentle wind: a generated 8 s
   loop of low-pass filtered noise with slow gusts (no audio files), started
   automatically, looping seamlessly (end and start samples match), audible but
   quiet (-22 dB player volume). It is separate from the action sounds.
+
+*Desert surround and red vignette (board findings)*
+
+- AC-78 (Scene) The hill stands in a desert: a `Desert` mesh of sand-coloured
+  dunes surrounds it out to at least 200 m (flat and at y = 0 at the hill's edge,
+  where the terrain skirt ends, rising into dunes further out), with a hole where
+  the hill is and distance haze (fog) so it fades into the horizon colour.
+- AC-79 (Scene) While a Sentinel sees you (`logic.watched`, playing) a red tint
+  covers the screen edges, strongest at the border and fading to nothing
+  towards the middle (`WatchVignette`, head-locked; it eases in over 0.3 s and out
+  over 0.5 s); it is hidden when nobody sees you, when paused and after a level
+  loads. The red border and countdown of the HUD stay.
 
 *Lobby placement (board finding)*
 
@@ -679,6 +708,13 @@ steps). AC-57 now also guarantees that sloped tiles exist.
   camera's horizontal forward direction, 1.0 to 2.5 m away, at eye height and
   facing the player, at any rig yaw; it is fixed in the world (turning the head
   or rig afterwards does not move it) and is placed again each time it opens.
+
+*Controls split (board finding)*
+
+- AC-74 (Scene) The right hand makes and moves (trigger, grip, A), the left hand
+  absorbs: the left controller carries its own (orange) ray and cursor disc,
+  `trigger_left_click` absorbs the tile that ray aims at (not the right ray's),
+  and the right B button and the right trigger never absorb.
 
 Known simplification (kept from the prototype): visibility tests only whether
 terrain or a tree blocks the line to a tile's top centre; the target tile's
@@ -818,5 +854,10 @@ fill the test file and test function when the test is written. Existing tests fo
 | AC-70 | `test_ac_70_lobby_panel_placement.gd` | `ac_70 ...` PASS lines |
 | AC-71 | `test_ac_logic.gd` | `ac_71_boulder_sees_over_step` |
 | AC-72 | `test_ac_logic.gd` | `ac_72_synthoid_on_boulder_eye` |
-| AC-77 | `test_ac_77_wind.gd` | `ac_77 ...` PASS lines |
 | AC-73 | `test_ac_73_pause_menu_placement.gd` | `ac_73 ...` PASS lines |
+| AC-74 | `test_ac_74_controls_split.gd` | `ac_74 ...` PASS lines |
+| AC-75 | `test_ac_75_deflate_and_won_card.gd` | `ac_75 ...` PASS lines |
+| AC-76 | `test_ac_76_sky_and_sun.gd` | `ac_76 ...` PASS lines |
+| AC-77 | `test_ac_77_wind.gd` | `ac_77 ...` PASS lines |
+| AC-78 | `test_ac_78_desert.gd` | `ac_78 ...` PASS lines |
+| AC-79 | `test_ac_79_watch_vignette.gd` | `ac_79 ...` PASS lines |
