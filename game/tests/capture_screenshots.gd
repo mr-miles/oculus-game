@@ -75,11 +75,21 @@ func _level_shots() -> void:
 	# A boulder stack (three boulders and a synthoid on top) seen from a few tiles away.
 	var pile := _free_neighbour(logic, tree)
 	logic.synthoids.erase(pile)
+	g.refresh()  # drop the old marker; the synthoid goes on top of the stack below
 	logic.boulders[pile] = 3
 	logic.synthoids[pile] = true
 	g.press("grip_click")  # the HUD now reads "Create: Boulder (2)"
 	g.refresh()
 	await _shot("boulder-stack")
+	# Climb: two boulders under your own feet lift the view (boulder mode is still on).
+	logic.energy = 20
+	g.aim_at(logic.player_tile)
+	g.press("trigger_click")
+	g.press("trigger_click")
+	g.aim_at(Vector2i(-1, -1))
+	g._aim_forced = false
+	g.refresh()
+	await _shot("boulder-view-from-stack")
 	# A slope close-up: stand on a flat tile beside a sloped one and look at it.
 	var slope := find_tile(g, func(t: Vector2i) -> bool: return not logic.is_flat(t) and _flat_neighbour(logic, t).x >= 0)
 	var edge := _flat_neighbour(logic, slope)

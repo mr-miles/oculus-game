@@ -18,7 +18,7 @@ func _init() -> void:
 	g.advance(0.3)
 	var origin: Node3D = g.find_child("XROrigin3D", true, false)
 	var cam: Node3D = g.find_child("XRCamera3D", true, false)
-	var altitude: float = float(logic.height(t)) + 0.5 * logic.boulders.get(t, 0)
+	var altitude: float = float(logic.height(t)) + GameLogic.BOULDER_HEIGHT * logic.boulders.get(t, 0)
 	check("ac_68 origin y is the flat altitude", absf(origin.global_position.y - altitude) <= 0.01)
 	check("ac_68 camera y is that + 1.6", absf(cam.global_position.y - (altitude + 1.6)) <= 0.01)
 	finish()
